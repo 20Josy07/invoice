@@ -52,37 +52,40 @@ Analiza la imagen adjunta:
 {{media url=photoDataUri}}
 
 Para cada ítem de la factura en la imagen, debes identificar y extraer la siguiente información:
-- codigo: El código o SKU REAL del producto tal como aparece en la factura. Debe ser alfanumérico. Si no se encuentra un código explícito para un ítem en la imagen, este campo puede omitirse o dejarse como una cadena vacía. **NO inventes códigos genéricos como 'AI-IMG-X' o similares; busca el código real en la imagen.**
+- codigo: El código o SKU REAL del producto tal como aparece en la factura. Debe ser alfanumérico. **Es CRUCIAL que NO INVENTES códigos.** Si no encuentras un código explícito para un ítem en la imagen (por ejemplo, en columnas tituladas "Código", "SKU", "REF", "Item"), DEJA este campo como una cadena vacía ("") o omítelo por completo. NO uses placeholders como 'AI-IMG-X'.
 - descripcion: La descripción detallada del producto. Este campo es obligatorio.
 - cantidad: La cantidad del producto. Debe ser un número mayor o igual a 1. Este campo es obligatorio. Columnas comunes para esto son "Cant.", "Cantidad".
-- precioCatalogo: El precio de catálogo POR UNIDAD del producto. Debe ser un número no negativo. Si no se encuentra, puede omitirse. Columnas comunes son "Precio Unitario", "P. Unit", "Precio Total" (si se refiere a unitario).
+- precioCatalogo: El precio de catálogo POR UNIDAD del producto. Debe ser un número no negativo. Si no se encuentra, puede omitirse. Columnas comunes son "Precio Unitario", "P. Unit", "Valor Unitario", "Precio Total" (si se refiere a unitario).
 - precioVendedora: El precio de venta POR UNIDAD del producto por parte del vendedor. Debe ser un número no negativo. Este campo es obligatorio.
-  IMPORTANTE: Si la factura muestra un precio total para la línea del ítem (ej. en columnas como "Vr. Neto", "Subtotal", "Importe Línea", "Total Item"), DEBES CALCULAR el precioVendedora unitario dividiendo ese total de línea entre la 'cantidad' del ítem. Asegúrate de que este es el precio final por unidad.
+  IMPORTANTE: Si la factura muestra un precio total para la línea del ítem (ej. en columnas como "Vr. Neto", "Subtotal", "Importe Línea", "Total Item", "Valor Total"), DEBES CALCULAR el precioVendedora unitario dividiendo ese total de línea entre la 'cantidad' del ítem. Asegúrate de que este es el precio final por unidad.
 
-Consideraciones importantes:
-- La imagen puede contener múltiples ítems, generalmente en un formato tabular.
-- **Interpretación de Números (MUY IMPORTANTE)**: Los números en las facturas pueden tener formatos locales (ej. usando comas como separadores de miles y puntos como decimales, o viceversa). Tu tarea es convertir estos números a un formato numérico estándar ANTES de incluirlos en los valores JSON para los campos de precio y cantidad. El formato estándar para que Zod lo procese correctamente es usar un punto '.' como separador decimal y NINGÚN separador de miles.
-  - **Ejemplo 1 (Coma como separador de miles Y punto como decimal en la imagen)**: Si la factura dice "1.234,56", debes procesarlo para que el valor en el JSON sea efectivamente 1234.56 (Zod lo interpretará de una cadena "1234.56").
-  - **Ejemplo 2 (Punto como separador de miles Y coma como decimal en la imagen)**: Si la factura dice "1,234.56", debes procesarlo para que el valor en el JSON sea efectivamente 1234.56 (Zod lo interpretará de una cadena "1234.56").
-  - **Ejemplo 3 (Coma como separador de miles, SIN decimales explícitos en la imagen)**: Si un precio en la imagen es "9,749" y representa "nueve mil setecientos cuarenta y nueve", debes procesarlo para que el valor en el JSON sea efectivamente 9749 (Zod lo interpretará de una cadena "9749"). **NO lo interpretes como 9.749**. Otro ejemplo: "54,999" debe ser 54999.
-  - **Ejemplo 4 (Punto como separador de miles, SIN decimales explícitos en la imagen)**: Si un precio en la imagen es "9.749" y representa "nueve mil setecientos cuarenta y nueve", debes procesarlo para que el valor en el JSON sea efectivamente 9749 (Zod lo interpretará de una cadena "9749").
-  - **Ejemplo 5 (Coma como decimal, sin miles en la imagen)**: Si un precio es "22,50" y representa "veintidós con cincuenta", debes procesarlo para que el valor en el JSON sea efectivamente 22.50 (Zod lo interpretará de una cadena "22.50").
-  - **Lógica de Conversión Sugerida que DEBES seguir**:
-    1.  Identifica el carácter usado como separador decimal en la factura (usualmente el que precede a dos dígitos al final del número, o el único separador si es un número con decimales como "22,50").
-    2.  Una vez identificado el separador decimal (sea punto o coma), reemplázalo por un punto (\`.\`) si no lo es ya.
-    3.  Elimina TODOS los OTROS puntos o comas restantes del número (estos serían los separadores de miles).
-    4.  Elimina cualquier símbolo de moneda ($, €, S/, etc.) y espacios en blanco.
+Consideraciones importantes para la extracción:
+- **Manejo de Imágenes Inclinadas o Distorsionadas**: Las facturas pueden estar fotografiadas con cierta inclinación. Presta especial atención a la alineación de las FILAS. Asegúrate de que todos los datos extraídos para un solo ítem (código, descripción, cantidad, precios) provengan de la misma fila visual en la imagen. Verifica que los valores de una columna no se mezclen con los de otra columna adyacente debido a la inclinación.
+- **Identificación de Columnas**: Busca encabezados de columna comunes. Esto te ayudará a identificar correctamente qué información corresponde a cada campo. Encabezados típicos son: "Código", "SKU", "REF", "Descripción", "Detalle", "Producto", "Cant.", "Cantidad", "P. Unit.", "Precio Unit.", "Val. Unit.", "Precio Catálogo", "P. Venta", "Precio Vendedor", "Importe", "Subtotal Línea", "Vr. Neto", "Valor Total".
+- **Interpretación de Números (MUY IMPORTANTE)**: Los números en las facturas pueden tener formatos locales. Tu tarea es convertir estos números a un formato numérico estándar ANTES de incluirlos en los valores JSON para los campos de precio y cantidad. El formato estándar para que Zod lo procese correctamente es usar un punto '.' como separador decimal y NINGÚN separador de miles.
+  - **Lógica de Conversión de Números que DEBES seguir**:
+    1.  Elimina cualquier símbolo de moneda ($, €, S/, etc.) y espacios en blanco del número extraído de la imagen.
+    2.  Identifica el carácter usado como separador decimal en la factura (usualmente el que precede a dos dígitos al final del número, o el único separador si es un número con decimales como "22,50").
+    3.  Una vez identificado el separador decimal (sea punto o coma), reemplázalo por un punto (\`.\`) si no lo es ya.
+    4.  Elimina TODOS los OTROS puntos o comas restantes del número (estos serían los separadores de miles).
     5.  El resultado de esta limpieza es la cadena que Zod usará para convertir a un número.
-  - El objetivo es que \`precioVendedora: "9,749"\` en la factura (donde la coma es de miles) resulte en un valor numérico de \`9749\` en el objeto final.
+  - **Ejemplos de Conversión (Imagen -> JSON string para Zod -> Valor Numérico Final)**:
+    - "1.234,56" (coma decimal) -> "1234.56" -> 1234.56
+    - "1,234.56" (punto decimal) -> "1234.56" -> 1234.56
+    - "9,749" (coma es separador de miles, sin decimales) -> "9749" -> 9749
+    - "54.999" (punto es separador de miles, sin decimales) -> "54999" -> 54999
+    - "22,50" (coma decimal, sin miles) -> "22.50" -> 22.50
+    - "S/ 1,500.00" -> "1500.00" -> 1500.00
+  - El objetivo es que, por ejemplo, \`precioVendedora: "9,749"\` en la factura (donde la coma es de miles y NO hay decimales explícitos) resulte en un valor numérico de \`9749\` en el objeto final.
 
-- Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca.
+- Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca en la misma fila.
 - No incluyas ítems que no tengan una descripción clara o una cantidad válida.
 - Es crucial que el campo 'cantidad' sea un número mayor o igual a 1 y 'precioVendedora' sea un número no negativo.
 
 Texto de entrada: (Referencia a la imagen {{media url=photoDataUri}})
 
 Analiza la imagen y devuelve un objeto JSON. Este objeto DEBE contener una única clave llamada "items". El valor de "items" DEBE ser un array de objetos, donde cada objeto representa un ítem de la factura y se ajusta al siguiente esquema:
-- codigo (string, opcional): El código REAL del producto, si existe. Si no existe, omítelo o déjalo como cadena vacía.
+- codigo (string, opcional): El código REAL del producto, si existe. Si no existe, DEBE ser una cadena vacía ("") u omitido. NO INVENTAR.
 - descripcion (string, obligatorio)
 - cantidad (number, obligatorio, >= 1)
 - precioCatalogo (number, opcional, no-negativo, por unidad)
@@ -94,7 +97,7 @@ Ejemplo de formato de respuesta esperado si se encuentran ítems:
 {
   "items": [
     { "codigo": "COD001", "descripcion": "Camisa Talla L", "cantidad": 2, "precioCatalogo": 25.00, "precioVendedora": 20.00 },
-    { "codigo": "PANT02", "descripcion": "Pantalón Jean Azul", "cantidad": 1, "precioVendedora": 45.50 }
+    { "descripcion": "Pantalón Jean Azul", "cantidad": 1, "precioVendedora": 45.50 } // 'codigo' omitido o "" si no se encontró
   ]
 }
 
@@ -106,7 +109,7 @@ Ejemplo de formato de respuesta esperado si NO se encuentran ítems:
 Proporciona ÚNICAMENTE el objeto JSON como respuesta, sin ningún texto, explicación o markdown adicional antes o después.
 `,
   config: {
-    temperature: 0.25, // Slightly increased temp for more flexibility in image interpretation, but still structured.
+    temperature: 0.15, // Lowered temperature further for more deterministic structured output, but allowing some OCR flexibility.
   }
 });
 
