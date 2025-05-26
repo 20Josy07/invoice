@@ -128,22 +128,27 @@ export function InvoiceForm() {
         const canvas = await html2canvas(invoiceContentElement, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const pdfPageWidth = pdf.internal.pageSize.getWidth();
+        const pdfPageHeight = pdf.internal.pageSize.getHeight();
+        
         const imgProps = pdf.getImageProperties(imgData);
-        const imgRatio = imgProps.height / imgProps.width;
-        let newImgHeight = pdfWidth * imgRatio;
-        let newImgWidth = pdfWidth;
+        const imgAspectRatio = imgProps.height / imgProps.width;
 
-        if (newImgHeight > pdfHeight) {
-            newImgHeight = pdfHeight;
-            newImgWidth = newImgHeight / imgRatio;
+        let finalImgWidth = pdfPageWidth;
+        let finalImgHeight = pdfPageWidth * imgAspectRatio;
+
+        // If scaling by width makes the image taller than the page, then scale by height instead
+        if (finalImgHeight > pdfPageHeight) {
+            finalImgHeight = pdfPageHeight;
+            finalImgWidth = finalImgHeight / imgAspectRatio;
         }
         
-        const xOffset = (pdfWidth - newImgWidth) / 2;
-        const yOffset = (pdfHeight - newImgHeight) / 2;
+        // Center the image horizontally
+        const xOffset = (pdfPageWidth - finalImgWidth) / 2;
+        // Align the image to the top of the page
+        const yOffset = 0;
 
-        pdf.addImage(imgData, 'PNG', xOffset, yOffset, newImgWidth, newImgHeight);
+        pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
         pdf.save(`factura-${preparedInvoiceData.data.invoiceNumber || 'documento'}.pdf`);
         toast({ title: "PDF Descargado", description: "La factura se ha descargado como PDF." });
       } catch (error) {

@@ -46,7 +46,7 @@ export function InvoicePreview({
     <div
       id="invoice-preview-content"
       {...props}
-      className="p-6 bg-white text-gray-800 border border-gray-300 rounded-lg shadow-lg w-full max-w-[210mm] mx-auto font-sans text-sm my-4"
+      className="p-6 bg-white text-gray-800 border border-gray-300 rounded-lg shadow-lg w-full max-w-[210mm] mx-auto font-sans text-sm"
     >
       {/* Invoice Header */}
       <header className="flex justify-between items-start mb-6">
