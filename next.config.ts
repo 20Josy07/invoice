@@ -1,7 +1,7 @@
 
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
+const config: NextConfig = {
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
@@ -21,9 +21,9 @@ const nextConfig: NextConfig = {
   },
   serverActions: {
     // Increased body size limit for Server Actions to handle larger image uploads.
-    // Default is 1MB. Set to 20MB.
-    bodySizeLimit: 20 * 1024 * 1024, // 20MB in bytes
+    // Default is 1MB. Set to approx 19MB.
+    bodySizeLimit: 20000000, // 20,000,000 bytes
   },
 };
 
-export default nextConfig;
+export default config;
