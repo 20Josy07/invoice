@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText } from 'lucide-react';
@@ -33,6 +34,7 @@ const invoiceFormSchema = z.object({
   clientName: z.string().optional(),
   clientAddress: z.string().optional(),
   invoiceNumber: z.string().optional(),
+  paymentDueDate: z.string().optional(), // Added payment due date
   items: z.array(invoiceItemSchema).min(1, "Debe agregar al menos un ítem a la factura."),
 });
 
@@ -53,6 +55,7 @@ export function InvoiceForm() {
       clientName: '',
       clientAddress: '',
       invoiceNumber: '',
+      paymentDueDate: '', // Added payment due date
       items: [{ codigo: '', descripcion: '', cantidad: 1, precioCatalogo: 0, precioVendedora: 0 }],
     },
   });
@@ -230,12 +233,30 @@ export function InvoiceForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         <Card className="shadow-lg rounded-lg">
           <CardHeader>
-            <CardTitle className="text-lg text-foreground">Información del Cliente (Opcional)</CardTitle>
+            <CardTitle className="text-lg text-foreground">Información del Cliente y Factura (Opcional)</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input {...register("clientName")} placeholder="Nombre del Cliente" className="h-9" />
-            <Input {...register("clientAddress")} placeholder="Dirección del Cliente" className="h-9" />
-            <Input {...register("invoiceNumber")} placeholder="Número de Factura (Ej: F001-123)" className="h-9" />
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <Label htmlFor="clientName" className="text-xs font-medium text-muted-foreground">Nombre del Cliente</Label>
+              <Input id="clientName" {...register("clientName")} placeholder="Nombre del Cliente" className="h-9 mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="clientAddress" className="text-xs font-medium text-muted-foreground">Dirección del Cliente</Label>
+              <Input id="clientAddress" {...register("clientAddress")} placeholder="Dirección del Cliente" className="h-9 mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="invoiceNumber" className="text-xs font-medium text-muted-foreground">Número de Factura</Label>
+              <Input id="invoiceNumber" {...register("invoiceNumber")} placeholder="Ej: F001-123" className="h-9 mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="paymentDueDate" className="text-xs font-medium text-muted-foreground">Fecha Límite de Pago</Label>
+              <Input
+                type="date"
+                id="paymentDueDate"
+                {...register("paymentDueDate")}
+                className="h-9 mt-1 w-full"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -401,4 +422,3 @@ export function InvoiceForm() {
     </>
   );
 }
-

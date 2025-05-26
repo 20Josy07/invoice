@@ -23,6 +23,25 @@ export function InvoicePreview({
     day: 'numeric',
   });
 
+  const formatPaymentDueDate = (dateString: string | undefined) => {
+    if (!dateString) return null;
+    // Input dateString is YYYY-MM-DD
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString; // Return as is if not in expected format
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS Date
+    const day = parseInt(parts[2], 10);
+    
+    const dateObj = new Date(year, month, day);
+    return dateObj.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+  
+  const formattedPaymentDueDate = formatPaymentDueDate(data.paymentDueDate);
+
   return (
     <div
       id="invoice-preview-content"
@@ -34,7 +53,10 @@ export function InvoicePreview({
         <div>
           <h1 className="text-3xl font-bold text-primary">FACTURA</h1>
           {data.invoiceNumber && <p className="text-muted-foreground mt-1">Número: {data.invoiceNumber}</p>}
-          <p className="text-muted-foreground">Fecha: {currentDate}</p>
+          <p className="text-muted-foreground">Fecha de Emisión: {currentDate}</p>
+          {formattedPaymentDueDate && (
+             <p className="text-muted-foreground">Fecha Límite de Pago: {formattedPaymentDueDate}</p>
+          )}
         </div>
         {/* Removed hardcoded company details div from here */}
       </header>
