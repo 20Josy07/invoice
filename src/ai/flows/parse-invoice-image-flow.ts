@@ -107,19 +107,39 @@ const parseInvoiceImageFlow = ai.defineFlow(
     try {
       const { output } = await prompt(input);
       if (!output || !Array.isArray(output.items)) {
+          let outputDetails = 'undefined or null';
+          if (output) {
+            try {
+              outputDetails = JSON.stringify(output, null, 2); // Stringify for logging
+            } catch (e) {
+              outputDetails = 'Unstringifiable output object received from AI prompt.';
+            }
+          }
           console.warn(
-            "[parseInvoiceImageFlow] AI prompt returned an unexpected output structure, no items, or items was not an array. Raw output received:", output
+            `[parseInvoiceImageFlow] AI prompt returned an unexpected output structure. Expected { items: [...] } but received: ${outputDetails}. Falling back to empty items array.`
           );
           return { items: [] };
       }
+      // Ensure items is always an array, even if the LLM provides null or undefined for output.items
       return { items: output.items || [] };
     } catch (error) {
+      let errorMessage = 'Unknown error during prompt execution.';
+      if (error instanceof Error) {
+        // Log essential error details as a string
+        errorMessage = `Name: ${error.name}, Message: ${error.message}, Stack: ${error.stack}`;
+      } else {
+        // Try to stringify non-Error objects
+        try {
+          errorMessage = JSON.stringify(error, null, 2);
+        } catch (e) {
+          errorMessage = 'Unstringifiable error object caught during prompt execution.';
+        }
+      }
       console.error(
-        "[parseInvoiceImageFlow] Critical error during execution. Error details:",
-        error instanceof Error ? { message: error.message, stack: error.stack, name: error.name } : error
+        `[parseInvoiceImageFlow] Critical error during AI prompt execution. Error details: ${errorMessage}. Falling back to empty items array.`
       );
+      // Always return a valid ParseInvoiceImageOutput structure to prevent Server Component crashes.
       return { items: [] };
     }
   }
 );
-    
