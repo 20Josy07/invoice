@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText, UploadCloud, XCircle } from 'lucide-react';
+import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText, UploadCloud, XCircle, ImageUp } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle as DialogTitleComponent } from '@/components/ui/dialog';
@@ -22,6 +22,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { parseInvoiceText, InvoiceItemAIData } from '@/ai/flows/parse-invoice-text-flow';
 import { parseInvoiceImage } from '@/ai/flows/parse-invoice-image-flow';
+import imageCompression from 'browser-image-compression';
 
 const invoiceItemSchema = z.object({
   codigo: z.string().min(1, "Código es requerido."),
@@ -113,6 +114,7 @@ export function InvoiceForm() {
   const [textToParse, setTextToParse] = useState('');
   
   const [isParsingImage, setIsParsingImage] = useState(false);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [selectedImageDataUri, setSelectedImageDataUri] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -249,15 +251,42 @@ export function InvoiceForm() {
     setIsParsingText(false);
   };
 
-  const handleImageFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedImageDataUri(reader.result as string);
+      setIsCompressingImage(true);
+      toast({ title: "Comprimiendo imagen...", description: "Por favor espere."});
+
+      const options = {
+        maxSizeMB: 0.8, // Max size in MB
+        maxWidthOrHeight: 1920, // Max width or height
+        useWebWorker: true,
       };
-      reader.readAsDataURL(file);
+
+      try {
+        const compressedFile = await imageCompression(file, options);
+        toast({ title: "Imagen comprimida", description: `Tamaño original: ${(file.size / 1024 / 1024).toFixed(2)} MB, Tamaño nuevo: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB` });
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setSelectedImageDataUri(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+
+      } catch (error) {
+        console.error('Error al comprimir la imagen:', error);
+        toast({ title: "Error de Compresión", description: "No se pudo comprimir la imagen. Se usará la original.", variant: "destructive" });
+        // Fallback to original image if compression fails
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setSelectedImageDataUri(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } finally {
+        setIsCompressingImage(false);
+      }
+
     } else {
       setSelectedImageFile(null);
       setSelectedImageDataUri(null);
@@ -317,9 +346,9 @@ export function InvoiceForm() {
               value={textToParse}
               onChange={(e) => setTextToParse(e.target.value)}
               className="min-h-[100px] mb-4"
-              disabled={isParsingText || isParsingImage}
+              disabled={isParsingText || isParsingImage || isCompressingImage}
             />
-            <Button onClick={handleParseTextWithAI} disabled={isParsingText || isParsingImage || !textToParse.trim()} className="bg-primary hover:bg-primary/90">
+            <Button onClick={handleParseTextWithAI} disabled={isParsingText || isParsingImage || isCompressingImage || !textToParse.trim()} className="bg-primary hover:bg-primary/90">
               {isParsingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
               Procesar Texto
             </Button>
@@ -340,12 +369,12 @@ export function InvoiceForm() {
                 onChange={handleImageFileChange}
                 className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                 ref={fileInputRef}
-                disabled={isParsingImage || isParsingText}
+                disabled={isParsingImage || isParsingText || isCompressingImage}
               />
               {selectedImageFile && (
                 <div className="text-sm text-muted-foreground flex justify-between items-center">
                   <span>Archivo: {selectedImageFile.name}</span>
-                  <Button variant="ghost" size="icon" onClick={clearSelectedImage} disabled={isParsingImage || isParsingText} aria-label="Limpiar imagen">
+                  <Button variant="ghost" size="icon" onClick={clearSelectedImage} disabled={isParsingImage || isParsingText || isCompressingImage} aria-label="Limpiar imagen">
                     <XCircle className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
@@ -355,9 +384,9 @@ export function InvoiceForm() {
                     <img src={selectedImageDataUri} alt="Previsualización de factura" className="w-auto h-full object-contain mx-auto" />
                 </div>
                 )}
-              <Button onClick={handleParseImageWithAI} disabled={isParsingImage || isParsingText || !selectedImageDataUri} className="bg-primary hover:bg-primary/90 w-full">
-                {isParsingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                Procesar Imagen
+              <Button onClick={handleParseImageWithAI} disabled={isParsingImage || isParsingText || !selectedImageDataUri || isCompressingImage} className="bg-primary hover:bg-primary/90 w-full">
+                {isCompressingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isParsingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageUp className="mr-2 h-4 w-4" /> }
+                {isCompressingImage ? 'Comprimiendo...' : isParsingImage ? 'Procesando Imagen...' : 'Procesar Imagen'}
               </Button>
             </div>
           </CardContent>
