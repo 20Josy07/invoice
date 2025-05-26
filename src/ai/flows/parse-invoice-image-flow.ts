@@ -52,7 +52,7 @@ Analiza la imagen adjunta:
 {{media url=photoDataUri}}
 
 Para cada ítem de la factura en la imagen, debes identificar y extraer la siguiente información:
-- codigo: El código o SKU real del producto tal como aparece en la factura. Debe ser alfanumérico. Si no se encuentra un código explícito para un ítem en la imagen, este campo puede omitirse o dejarse como una cadena vacía. NO inventes códigos genéricos como 'AI-IMG-X', busca el código real.
+- codigo: El código o SKU REAL del producto tal como aparece en la factura. Debe ser alfanumérico. Si no se encuentra un código explícito para un ítem en la imagen, este campo puede omitirse o dejarse como una cadena vacía. **NO inventes códigos genéricos como 'AI-IMG-X' o similares; busca el código real en la imagen.**
 - descripcion: La descripción detallada del producto. Este campo es obligatorio.
 - cantidad: La cantidad del producto. Debe ser un número mayor o igual a 1. Este campo es obligatorio. Columnas comunes para esto son "Cant.", "Cantidad".
 - precioCatalogo: El precio de catálogo POR UNIDAD del producto. Debe ser un número no negativo. Si no se encuentra, puede omitirse. Columnas comunes son "Precio Unitario", "P. Unit", "Precio Total" (si se refiere a unitario).
@@ -74,7 +74,7 @@ Consideraciones importantes:
 Texto de entrada: (Referencia a la imagen {{media url=photoDataUri}})
 
 Analiza la imagen y devuelve un objeto JSON. Este objeto DEBE contener una única clave llamada "items". El valor de "items" DEBE ser un array de objetos, donde cada objeto representa un ítem de la factura y se ajusta al siguiente esquema:
-- codigo (string, opcional): El código REAL del producto, si existe.
+- codigo (string, opcional): El código REAL del producto, si existe. Si no existe, omítelo o déjalo como cadena vacía.
 - descripcion (string, obligatorio)
 - cantidad (number, obligatorio, >= 1)
 - precioCatalogo (number, opcional, no-negativo, por unidad)
