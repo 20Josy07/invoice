@@ -25,7 +25,7 @@ import { parseInvoiceImage } from '@/ai/flows/parse-invoice-image-flow';
 import imageCompression from 'browser-image-compression';
 
 const invoiceItemSchema = z.object({
-  codigo: z.string().min(1, "Código es requerido."),
+  codigo: z.string().optional(), // Código es opcional
   descripcion: z.string().min(1, "Descripción es requerida."),
   cantidad: z.coerce.number().positive("Cantidad debe ser mayor a 0."),
   precioCatalogo: z.coerce.number().min(0, "Precio catálogo no puede ser negativo."),
@@ -123,7 +123,7 @@ export function InvoiceForm() {
 
   const addNewItem = () => {
     append({
-      codigo: `NEW${fields.length + 1}`, // Example of a default unique code
+      codigo: '', // Default codigo to empty string
       descripcion: '',
       cantidad: 1,
       precioCatalogo: 0,
@@ -229,8 +229,8 @@ export function InvoiceForm() {
     try {
       const result = await parseInvoiceText({ text: textToParse });
       if (result && result.items && result.items.length > 0) {
-        const newItems = result.items.map((item: InvoiceItemAIData, idx: number) => ({
-          codigo: item.codigo || `AI-TXT-${idx + 1}`,
+        const newItems = result.items.map((item: InvoiceItemAIData) => ({
+          codigo: item.codigo || '', // Use empty string if AI doesn't provide a code
           descripcion: item.descripcion || 'Descripción no encontrada',
           cantidad: Number(item.cantidad) || 1,
           precioCatalogo: Number(item.precioCatalogo) || 0,
@@ -310,8 +310,8 @@ export function InvoiceForm() {
     try {
       const result = await parseInvoiceImage({ photoDataUri: selectedImageDataUri });
       if (result && result.items && result.items.length > 0) {
-         const newItems = result.items.map((item: InvoiceItemAIData, idx: number) => ({
-          codigo: item.codigo || `AI-IMG-${idx + 1}`,
+         const newItems = result.items.map((item: InvoiceItemAIData) => ({
+          codigo: item.codigo || '', // Use empty string if AI doesn't provide a code
           descripcion: item.descripcion || 'Descripción no encontrada',
           cantidad: Number(item.cantidad) || 1,
           precioCatalogo: Number(item.precioCatalogo) || 0,
