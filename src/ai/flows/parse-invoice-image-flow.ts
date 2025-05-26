@@ -61,12 +61,20 @@ Para cada ítem de la factura en la imagen, debes identificar y extraer la sigui
 
 Consideraciones importantes:
 - La imagen puede contener múltiples ítems, generalmente en un formato tabular.
-- **Interpretación de números**: Presta MUCHA atención a los formatos numéricos extraídos de la imagen. Tu objetivo es obtener el valor numérico correcto.
-  - **Regla Principal**: Generalmente, en las facturas que procesarás, la coma (,) se usa como separador de miles y el punto (.) como separador decimal. Ejemplo: '1,234.56' debe interpretarse como 1234.56.
-  - **Casos con solo comas (posible decimal)**: Si un número contiene comas pero no puntos, y el contexto sugiere fuertemente que es un decimal (por ejemplo, '123,45' en un campo de precio o una cantidad fraccionaria que usa coma), interpreta la coma como separador decimal (resultado: 123.45).
-  - **Casos con solo puntos (posible decimal)**: Si un número contiene puntos pero no comas, y el contexto sugiere que es un decimal (ej. '123.45'), interpreta el punto como separador decimal (resultado: 123.45).
-  - **Ambigüedad**: Si el formato es ambiguo, usa el contexto de la columna (Cantidad, Precio Unitario, Total) para decidir. Las cantidades suelen ser números enteros o tener pocos decimales. Los precios suelen tener dos decimales.
-  - **Limpieza**: Asegúrate de eliminar cualquier símbolo de moneda (ej. $, €, S/, etc.) o espacios extra antes de convertir el valor a un número.
+- **Interpretación de Números (MUY IMPORTANTE)**: Los números en las facturas pueden tener formatos locales (ej. usando comas como separadores de miles y puntos como decimales, o viceversa). Tu tarea es convertir estos números a un formato numérico estándar ANTES de incluirlos en los valores JSON para los campos de precio y cantidad. El formato estándar para que Zod lo procese correctamente es usar un punto '.' como separador decimal y NINGÚN separador de miles.
+  - **Ejemplo 1 (Coma como separador de miles Y punto como decimal en la imagen)**: Si la factura dice "1.234,56", debes procesarlo para que el valor en el JSON sea efectivamente 1234.56 (Zod lo interpretará de una cadena "1234.56").
+  - **Ejemplo 2 (Punto como separador de miles Y coma como decimal en la imagen)**: Si la factura dice "1,234.56", debes procesarlo para que el valor en el JSON sea efectivamente 1234.56 (Zod lo interpretará de una cadena "1234.56").
+  - **Ejemplo 3 (Coma como separador de miles, SIN decimales explícitos en la imagen)**: Si un precio en la imagen es "9,749" y representa "nueve mil setecientos cuarenta y nueve", debes procesarlo para que el valor en el JSON sea efectivamente 9749 (Zod lo interpretará de una cadena "9749"). **NO lo interpretes como 9.749**. Otro ejemplo: "54,999" debe ser 54999.
+  - **Ejemplo 4 (Punto como separador de miles, SIN decimales explícitos en la imagen)**: Si un precio en la imagen es "9.749" y representa "nueve mil setecientos cuarenta y nueve", debes procesarlo para que el valor en el JSON sea efectivamente 9749 (Zod lo interpretará de una cadena "9749").
+  - **Ejemplo 5 (Coma como decimal, sin miles en la imagen)**: Si un precio es "22,50" y representa "veintidós con cincuenta", debes procesarlo para que el valor en el JSON sea efectivamente 22.50 (Zod lo interpretará de una cadena "22.50").
+  - **Lógica de Conversión Sugerida que DEBES seguir**:
+    1.  Identifica el carácter usado como separador decimal en la factura (usualmente el que precede a dos dígitos al final del número, o el único separador si es un número con decimales como "22,50").
+    2.  Una vez identificado el separador decimal (sea punto o coma), reemplázalo por un punto (\`.\`) si no lo es ya.
+    3.  Elimina TODOS los OTROS puntos o comas restantes del número (estos serían los separadores de miles).
+    4.  Elimina cualquier símbolo de moneda ($, €, S/, etc.) y espacios en blanco.
+    5.  El resultado de esta limpieza es la cadena que Zod usará para convertir a un número.
+  - El objetivo es que \`precioVendedora: "9,749"\` en la factura (donde la coma es de miles) resulte en un valor numérico de \`9749\` en el objeto final.
+
 - Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca.
 - No incluyas ítems que no tengan una descripción clara o una cantidad válida.
 - Es crucial que el campo 'cantidad' sea un número mayor o igual a 1 y 'precioVendedora' sea un número no negativo.
