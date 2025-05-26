@@ -100,22 +100,30 @@ const parseInvoiceTextFlow = ai.defineFlow(
   async (input) => {
     try {
       const { output } = await prompt(input);
-      if (!output) {
-          console.warn("AI prompt for parseInvoiceTextFlow returned no output that matched the schema. Input text:", input.text);
-          return { items: [] };
+      // The `prompt` call handles schema validation based on `outputSchema`.
+      // If `output` is null/undefined or `output.items` is not an array here,
+      // it means the LLM's response was problematic (e.g., empty, wrong structure but not a Zod error)
+      // or Zod parsing within the prompt still resulted in an undefined output for 'items'.
+      if (!output || !Array.isArray(output.items)) {
+          console.warn(
+            "[parseInvoiceTextFlow] AI prompt returned an unexpected output structure, no items, or items was not an array. Input text:",
+            input.text,
+            "Raw output received:", output
+          );
+          return { items: [] }; // Default to empty items, conforming to ParseInvoiceTextOutputSchema
       }
       // Ensure items is always an array, even if the LLM fails to provide it or provides null
       return { items: output.items || [] };
     } catch (error) {
-      console.error("Error in parseInvoiceTextFlow execution:", error);
-      console.error("Input text that caused error:", input.text);
-      // Re-throw the error to be caught by the client-side handler,
-      // or return a default error structure if preferred.
-      // For now, re-throwing will make the client see the generic 500 error.
-      // To give a more specific error to client, you might structure it:
-      // return { error: "Failed to parse invoice text", details: (error as Error).message, items: [] };
-      // But this would require changing ParseInvoiceTextOutputSchema to include an error field.
-      throw error; 
+      console.error(
+        "[parseInvoiceTextFlow] Critical error during execution. Input text:",
+        input.text,
+        "Error details:",
+        error instanceof Error ? { message: error.message, stack: error.stack, name: error.name } : error
+      );
+      // Always return a valid ParseInvoiceTextOutput structure to prevent Server Component crashes.
+      // The client-side will show a toast indicating an error or no items found.
+      return { items: [] };
     }
   }
 );
