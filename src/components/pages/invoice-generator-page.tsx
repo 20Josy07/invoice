@@ -1,21 +1,30 @@
+
 import { InvoiceForm } from '@/components/invoice/invoice-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function InvoiceGeneratorPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8">
-      <header className="mb-10 text-center">
-        <div className="inline-flex items-center justify-center bg-primary/10 p-3 rounded-full mb-4">
-          <FileText className="h-10 w-10 text-primary" />
+      <div className="w-full max-w-5xl flex justify-between items-start mb-10 px-2 sm:px-0">
+        <div className="flex-grow"> {/* Container for header text to allow it to take space */}
+          <header className="text-left">
+            <div className="inline-flex items-center justify-center bg-primary/10 p-3 rounded-full mb-4">
+              <FileText className="h-10 w-10 text-primary" />
+            </div>
+            <h1 className="text-4xl font-extrabold text-foreground tracking-tight sm:text-5xl">
+              Factura Fácil
+            </h1>
+            <p className="mt-3 text-xl text-muted-foreground max-w-2xl">
+              Genere sus facturas electrónicas de manera rápida y sencilla.
+            </p>
+          </header>
         </div>
-        <h1 className="text-4xl font-extrabold text-foreground tracking-tight sm:text-5xl">
-          Factura Fácil
-        </h1>
-        <p className="mt-3 text-xl text-muted-foreground max-w-2xl mx-auto">
-          Genere sus facturas electrónicas de manera rápida y sencilla.
-        </p>
-      </header>
+        <div className="ml-4 flex-shrink-0"> {/* Container for the toggle, with margin and shrink prevention */}
+          <ThemeToggle />
+        </div>
+      </div>
       <main className="w-full flex justify-center">
         <Card className="w-full max-w-5xl shadow-xl rounded-xl overflow-hidden">
           <CardHeader className="bg-primary/5 border-b border-primary/10 p-6">
