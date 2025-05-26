@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -19,7 +20,9 @@ const nextConfig: NextConfig = {
     ],
   },
   serverActions: {
-    bodySizeLimit: '10mb', // Increased body size limit for Server Actions
+    // Increased body size limit for Server Actions to handle larger image uploads.
+    // Default is 1MB. Set to 20MB.
+    bodySizeLimit: 20 * 1024 * 1024, // 20MB in bytes
   },
 };
 
