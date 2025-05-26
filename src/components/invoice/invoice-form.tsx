@@ -2,7 +2,7 @@
 "use client";
 
 import type { InvoiceItemData } from '@/types/invoice';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText } from 'lucide-react';
+import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText, UploadCloud, XCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle as DialogTitleComponent } from '@/components/ui/dialog'; // Renamed to avoid conflict
@@ -21,6 +21,7 @@ import { InvoicePreview } from './invoice-preview';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { parseInvoiceText } from '@/ai/flows/parse-invoice-text-flow';
+import { parseInvoiceImage } from '@/ai/flows/parse-invoice-image-flow';
 
 const invoiceItemSchema = z.object({
   codigo: z.string().min(1, "Código es requerido."),
@@ -73,8 +74,15 @@ export function InvoiceForm() {
 
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [preparedInvoiceData, setPreparedInvoiceData] = useState<PreparedInvoiceData | null>(null);
+  
   const [isParsingText, setIsParsingText] = useState(false);
   const [textToParse, setTextToParse] = useState('');
+  
+  const [isParsingImage, setIsParsingImage] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [selectedImageDataUri, setSelectedImageDataUri] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
@@ -125,28 +133,40 @@ export function InvoiceForm() {
     const invoiceContentElement = document.getElementById('invoice-preview-content');
     if (invoiceContentElement) {
       try {
-        const canvas = await html2canvas(invoiceContentElement, { scale: 2, useCORS: true });
+        const canvas = await html2canvas(invoiceContentElement, { scale: 2, useCORS: true, width: invoiceContentElement.scrollWidth, height: invoiceContentElement.scrollHeight });
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdf = new jsPDF('p', 'mm', 'a4'); // page format
         const pdfPageWidth = pdf.internal.pageSize.getWidth();
         const pdfPageHeight = pdf.internal.pageSize.getHeight();
         
         const imgProps = pdf.getImageProperties(imgData);
-        const imgAspectRatio = imgProps.height / imgProps.width;
+        const imgAspectRatio = imgProps.width / imgProps.height; // width / height
 
-        let finalImgWidth = pdfPageWidth;
-        let finalImgHeight = pdfPageWidth * imgAspectRatio;
+        let finalImgWidth, finalImgHeight;
 
-        // If scaling by width makes the image taller than the page, then scale by height instead
-        if (finalImgHeight > pdfPageHeight) {
+        // Check if image is portrait or landscape relative to A4 paper
+        if (imgAspectRatio > (pdfPageWidth / pdfPageHeight)) { // Image is wider than page
+            finalImgWidth = pdfPageWidth;
+            finalImgHeight = finalImgWidth / imgAspectRatio;
+        } else { // Image is taller than page or fits perfectly
             finalImgHeight = pdfPageHeight;
-            finalImgWidth = finalImgHeight / imgAspectRatio;
+            finalImgWidth = finalImgHeight * imgAspectRatio;
         }
         
-        // Center the image horizontally
+        // If scaled image is still wider than page (can happen if original image is very wide)
+        if (finalImgWidth > pdfPageWidth) {
+            finalImgWidth = pdfPageWidth;
+            finalImgHeight = finalImgWidth / imgAspectRatio;
+        }
+         // If scaled image is still taller than page (can happen if original image is very tall)
+        if (finalImgHeight > pdfPageHeight) {
+           finalImgHeight = pdfPageHeight;
+           finalImgWidth = finalImgHeight * imgAspectRatio;
+        }
+
+
         const xOffset = (pdfPageWidth - finalImgWidth) / 2;
-        // Align the image to the top of the page
-        const yOffset = 0;
+        const yOffset = 0; // Align to top
 
         pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
         pdf.save(`factura-${preparedInvoiceData.data.invoiceNumber || 'documento'}.pdf`);
@@ -165,7 +185,7 @@ export function InvoiceForm() {
     const invoiceContentElement = document.getElementById('invoice-preview-content');
     if (invoiceContentElement) {
       try {
-        const canvas = await html2canvas(invoiceContentElement, { scale: 2, useCORS: true });
+        const canvas = await html2canvas(invoiceContentElement, { scale: 2, useCORS: true, width: invoiceContentElement.scrollWidth, height: invoiceContentElement.scrollHeight });
         const imgData = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.href = imgData;
@@ -191,19 +211,18 @@ export function InvoiceForm() {
     try {
       const result = await parseInvoiceText({ text: textToParse });
       if (result && result.items && result.items.length > 0) {
-        // Map AI result to form items, ensuring all fields required by schema are present
         const newItems = result.items.map(item => ({
-          codigo: item.codigo || '',
-          descripcion: item.descripcion || '',
+          codigo: item.codigo || `N/A-${Math.random().toString(36).substring(7)}`,
+          descripcion: item.descripcion || 'Descripción no encontrada',
           cantidad: Number(item.cantidad) || 1,
           precioCatalogo: Number(item.precioCatalogo) || 0,
           precioVendedora: Number(item.precioVendedora) || 0,
         }));
-        reset({ ...watch(), items: newItems }); // Reset with current client data and new items
+        reset({ ...watch(), items: newItems });
         toast({ title: "Texto procesado", description: "Los ítems han sido cargados en el formulario." });
-        setTextToParse(''); // Clear textarea
+        setTextToParse('');
       } else {
-        toast({ title: "No se extrajeron ítems", description: "La IA no pudo extraer ítems del texto proporcionado. Intente con otro formato.", variant: "default" });
+        toast({ title: "No se extrajeron ítems", description: "La IA no pudo extraer ítems del texto proporcionado. Revise el formato o intente con una imagen.", variant: "default" });
       }
     } catch (error) {
       console.error("Error parsing text with AI:", error);
@@ -212,28 +231,119 @@ export function InvoiceForm() {
     setIsParsingText(false);
   };
 
+  const handleImageFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedImageDataUri(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setSelectedImageFile(null);
+      setSelectedImageDataUri(null);
+    }
+  };
+
+  const clearSelectedImage = () => {
+    setSelectedImageFile(null);
+    setSelectedImageDataUri(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Reset file input
+    }
+  };
+
+  const handleParseImageWithAI = async () => {
+    if (!selectedImageDataUri) {
+      toast({ title: "No hay imagen seleccionada", description: "Por favor, seleccione un archivo de imagen.", variant: "destructive" });
+      return;
+    }
+    setIsParsingImage(true);
+    try {
+      const result = await parseInvoiceImage({ photoDataUri: selectedImageDataUri });
+      if (result && result.items && result.items.length > 0) {
+         const newItems = result.items.map(item => ({
+          codigo: item.codigo || `N/A-${Math.random().toString(36).substring(7)}`,
+          descripcion: item.descripcion || 'Descripción no encontrada',
+          cantidad: Number(item.cantidad) || 1,
+          precioCatalogo: Number(item.precioCatalogo) || 0,
+          precioVendedora: Number(item.precioVendedora) || 0,
+        }));
+        reset({ ...watch(), items: newItems });
+        toast({ title: "Imagen procesada", description: "Los ítems han sido extraídos de la imagen y cargados." });
+        clearSelectedImage();
+      } else {
+        toast({ title: "No se extrajeron ítems de la imagen", description: "La IA no pudo extraer ítems de la imagen. Intente con otra imagen o ingrese los datos manualmente/texto.", variant: "default" });
+      }
+    } catch (error) {
+      console.error("Error parsing image with AI:", error);
+      toast({ title: "Error de IA con Imagen", description: "Hubo un problema al procesar la imagen con la IA.", variant: "destructive" });
+    }
+    setIsParsingImage(false);
+  };
+
 
   return (
     <>
-      <Card className="mb-8 shadow-lg rounded-lg">
-        <CardHeader>
-          <CardTitle className="text-lg text-foreground">Procesar Ítems con IA</CardTitle>
-          <CardDescription>Pegue el texto de los ítems de su factura y la IA intentará organizarlos.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            placeholder="Ejemplo: COD001 Camisa Talla L cant 2 precio cat 25 precio vend 20\nPROD002 Pantalón Jean cant 1 precio cat 50 precio vend 45"
-            value={textToParse}
-            onChange={(e) => setTextToParse(e.target.value)}
-            className="min-h-[100px] mb-4"
-            disabled={isParsingText}
-          />
-          <Button onClick={handleParseTextWithAI} disabled={isParsingText || !textToParse.trim()} className="bg-primary hover:bg-primary/90">
-            {isParsingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
-            Procesar Texto con IA
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <Card className="shadow-lg rounded-lg">
+          <CardHeader>
+            <CardTitle className="text-lg text-foreground">Procesar Ítems con IA (Texto)</CardTitle>
+            <CardDescription>Pegue el texto de los ítems de su factura y la IA intentará organizarlos.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              placeholder="Ejemplo: COD001 Camisa Talla L cant 2 precio cat 25 precio vend 20&#10;PROD002 Pantalón Jean cant 1 precio cat 50 precio vend 45"
+              value={textToParse}
+              onChange={(e) => setTextToParse(e.target.value)}
+              className="min-h-[100px] mb-4"
+              disabled={isParsingText || isParsingImage}
+            />
+            <Button onClick={handleParseTextWithAI} disabled={isParsingText || isParsingImage || !textToParse.trim()} className="bg-primary hover:bg-primary/90">
+              {isParsingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
+              Procesar Texto
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg rounded-lg">
+          <CardHeader>
+            <CardTitle className="text-lg text-foreground">Procesar Ítems con IA (Imagen)</CardTitle>
+            <CardDescription>Suba una imagen de su factura y la IA intentará extraer los ítems.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Input
+                id="imageUpload"
+                type="file"
+                accept="image/png, image/jpeg, image/webp"
+                onChange={handleImageFileChange}
+                className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                ref={fileInputRef}
+                disabled={isParsingImage || isParsingText}
+              />
+              {selectedImageFile && (
+                <div className="text-sm text-muted-foreground flex justify-between items-center">
+                  <span>Archivo: {selectedImageFile.name}</span>
+                  <Button variant="ghost" size="icon" onClick={clearSelectedImage} disabled={isParsingImage || isParsingText} aria-label="Limpiar imagen">
+                    <XCircle className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              )}
+               {selectedImageDataUri && (
+                <div className="mt-2 border rounded-md p-2 max-h-40 overflow-hidden">
+                    <img src={selectedImageDataUri} alt="Previsualización de factura" className="w-auto h-full object-contain mx-auto" />
+                </div>
+                )}
+              <Button onClick={handleParseImageWithAI} disabled={isParsingImage || isParsingText || !selectedImageDataUri} className="bg-primary hover:bg-primary/90 w-full">
+                {isParsingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                Procesar Imagen
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
       
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         <Card className="shadow-lg rounded-lg">
@@ -427,3 +537,4 @@ export function InvoiceForm() {
     </>
   );
 }
+    
