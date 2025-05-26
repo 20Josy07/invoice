@@ -96,11 +96,13 @@ export function InvoicePreview({
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer - Removed */}
+      {/* 
       <footer className="text-center text-xs text-muted-foreground pt-6 border-t border-border mt-6">
         <p>Gracias por su preferencia.</p>
         <p>Este es un documento generado por Factura Fácil.</p>
       </footer>
+      */}
     </div>
   );
 }
