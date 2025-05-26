@@ -52,7 +52,7 @@ Analiza la imagen adjunta:
 {{media url=photoDataUri}}
 
 Para cada ítem de la factura en la imagen, debes identificar y extraer la siguiente información:
-- codigo: El código o SKU real del producto tal como aparece en la factura. Debe ser alfanumérico. Si no se encuentra un código explícito para un ítem en la imagen, este campo puede omitirse o dejarse como una cadena vacía. NO inventes códigos como 'AI-IMG-X'.
+- codigo: El código o SKU real del producto tal como aparece en la factura. Debe ser alfanumérico. Si no se encuentra un código explícito para un ítem en la imagen, este campo puede omitirse o dejarse como una cadena vacía. NO inventes códigos genéricos como 'AI-IMG-X', busca el código real.
 - descripcion: La descripción detallada del producto. Este campo es obligatorio.
 - cantidad: La cantidad del producto. Debe ser un número mayor o igual a 1. Este campo es obligatorio. Columnas comunes para esto son "Cant.", "Cantidad".
 - precioCatalogo: El precio de catálogo POR UNIDAD del producto. Debe ser un número no negativo. Si no se encuentra, puede omitirse. Columnas comunes son "Precio Unitario", "P. Unit", "Precio Total" (si se refiere a unitario).
@@ -61,7 +61,12 @@ Para cada ítem de la factura en la imagen, debes identificar y extraer la sigui
 
 Consideraciones importantes:
 - La imagen puede contener múltiples ítems, generalmente en un formato tabular.
-- **Interpretación de números**: Presta MUCHA atención a los formatos numéricos. Si ves una coma (,) en un número, es probable que sea el separador decimal (ej. 1.234,56 debe interpretarse como 1234.56). Si ves un punto (.) como separador de miles y una coma (,) como decimal, interpreta correctamente (ej. 1.234,56 -> 1234.56). Si el formato es 1,234.56 (coma para miles, punto para decimal), también interprétalo como 1234.56. El objetivo es obtener el valor numérico correcto.
+- **Interpretación de números**: Presta MUCHA atención a los formatos numéricos extraídos de la imagen. Tu objetivo es obtener el valor numérico correcto.
+  - **Regla Principal**: Generalmente, en las facturas que procesarás, la coma (,) se usa como separador de miles y el punto (.) como separador decimal. Ejemplo: '1,234.56' debe interpretarse como 1234.56.
+  - **Casos con solo comas (posible decimal)**: Si un número contiene comas pero no puntos, y el contexto sugiere fuertemente que es un decimal (por ejemplo, '123,45' en un campo de precio o una cantidad fraccionaria que usa coma), interpreta la coma como separador decimal (resultado: 123.45).
+  - **Casos con solo puntos (posible decimal)**: Si un número contiene puntos pero no comas, y el contexto sugiere que es un decimal (ej. '123.45'), interpreta el punto como separador decimal (resultado: 123.45).
+  - **Ambigüedad**: Si el formato es ambiguo, usa el contexto de la columna (Cantidad, Precio Unitario, Total) para decidir. Las cantidades suelen ser números enteros o tener pocos decimales. Los precios suelen tener dos decimales.
+  - **Limpieza**: Asegúrate de eliminar cualquier símbolo de moneda (ej. $, €, S/, etc.) o espacios extra antes de convertir el valor a un número.
 - Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca.
 - No incluyas ítems que no tengan una descripción clara o una cantidad válida.
 - Es crucial que el campo 'cantidad' sea un número mayor o igual a 1 y 'precioVendedora' sea un número no negativo.
@@ -80,7 +85,7 @@ Si no se encuentran ítems válidos, el valor de "items" debe ser un array vací
 Ejemplo de formato de respuesta esperado si se encuentran ítems:
 {
   "items": [
-    { "codigo": "COD001", "descripcion": "Camisa Talla L", "cantidad": 2, "precioCatalogo": 25, "precioVendedora": 20 },
+    { "codigo": "COD001", "descripcion": "Camisa Talla L", "cantidad": 2, "precioCatalogo": 25.00, "precioVendedora": 20.00 },
     { "codigo": "PANT02", "descripcion": "Pantalón Jean Azul", "cantidad": 1, "precioVendedora": 45.50 }
   ]
 }
