@@ -1,9 +1,9 @@
 
 "use client";
 
-import type { InvoiceItemData } from '@/types/invoice';
+import type { InvoiceItemData } from '@/types/invoice'; // Make sure this is the correct type for items in the form
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, FieldArrayWithId } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -14,13 +14,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText, UploadCloud, XCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle as DialogTitleComponent } from '@/components/ui/dialog'; // Renamed to avoid conflict
+import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle as DialogTitleComponent } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { InvoicePreview } from './invoice-preview';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { parseInvoiceText } from '@/ai/flows/parse-invoice-text-flow';
+import { parseInvoiceText, InvoiceItemAIData } from '@/ai/flows/parse-invoice-text-flow';
 import { parseInvoiceImage } from '@/ai/flows/parse-invoice-image-flow';
 
 const invoiceItemSchema = z.object({
@@ -35,11 +35,22 @@ const invoiceFormSchema = z.object({
   clientName: z.string().optional(),
   clientAddress: z.string().optional(),
   invoiceNumber: z.string().optional(),
-  paymentDueDate: z.string().optional(), // Added payment due date
+  paymentDueDate: z.string().optional(),
   items: z.array(invoiceItemSchema).min(1, "Debe agregar al menos un ítem a la factura."),
 });
 
 export type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
+
+// Type for items within the form array, including the 'id' from useFieldArray
+type FormItem = FieldArrayWithId<InvoiceFormValues, "items", "id">;
+
+// Type for items when calculating totals, allowing for partial data or string inputs during editing
+type CalculableItem = Partial<{
+  cantidad: number | string;
+  precioCatalogo: number | string;
+  precioVendedora: number | string;
+}>;
+
 
 interface PreparedInvoiceData {
   data: InvoiceFormValues;
@@ -47,6 +58,30 @@ interface PreparedInvoiceData {
   subtotalVendedora: number;
   totalAPagar: number;
 }
+
+// Helper function to calculate totals
+const calculateInvoiceTotals = (currentItems: ReadonlyArray<CalculableItem> | undefined) => {
+  let catSum = 0;
+  let vendSum = 0;
+
+  if (Array.isArray(currentItems)) {
+    currentItems.forEach(item => {
+      const cantidad = parseFloat(String(item.cantidad)) || 0;
+      const precioCatalogo = parseFloat(String(item.precioCatalogo)) || 0;
+      const precioVendedora = parseFloat(String(item.precioVendedora)) || 0;
+
+      catSum += cantidad * precioCatalogo;
+      vendSum += cantidad * precioVendedora;
+    });
+  }
+
+  return {
+    subtotalCatalogo: catSum,
+    subtotalVendedora: vendSum,
+    totalAPagar: vendSum, // Total to pay is based on vendor prices
+  };
+};
+
 
 export function InvoiceForm() {
   const { toast } = useToast();
@@ -56,7 +91,7 @@ export function InvoiceForm() {
       clientName: '',
       clientAddress: '',
       invoiceNumber: '',
-      paymentDueDate: '', // Added payment due date
+      paymentDueDate: '',
       items: [{ codigo: '', descripcion: '', cantidad: 1, precioCatalogo: 0, precioVendedora: 0 }],
     },
   });
@@ -68,9 +103,8 @@ export function InvoiceForm() {
 
   const watchedItems = watch("items");
 
-  const [subtotalCatalogo, setSubtotalCatalogo] = useState(0);
-  const [subtotalVendedora, setSubtotalVendedora] = useState(0);
-  const [totalAPagar, setTotalAPagar] = useState(0);
+  // Calculate totals directly from watchedItems
+  const { subtotalCatalogo, subtotalVendedora, totalAPagar } = calculateInvoiceTotals(watchedItems);
 
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [preparedInvoiceData, setPreparedInvoiceData] = useState<PreparedInvoiceData | null>(null);
@@ -85,26 +119,9 @@ export function InvoiceForm() {
 
   const [isDownloading, setIsDownloading] = useState(false);
 
-  useEffect(() => {
-    let catSum = 0;
-    let vendSum = 0;
-    watchedItems.forEach(item => {
-      const cantidad = Number(item.cantidad) || 0;
-      const precioCatalogo = Number(item.precioCatalogo) || 0;
-      const precioVendedora = Number(item.precioVendedora) || 0;
-      if (cantidad > 0) {
-        catSum += cantidad * precioCatalogo;
-        vendSum += cantidad * precioVendedora;
-      }
-    });
-    setSubtotalCatalogo(catSum);
-    setSubtotalVendedora(vendSum);
-    setTotalAPagar(vendSum);
-  }, [watchedItems]);
-
   const addNewItem = () => {
     append({
-      codigo: '',
+      codigo: `NEW${fields.length + 1}`, // Example of a default unique code
       descripcion: '',
       cantidad: 1,
       precioCatalogo: 0,
@@ -113,11 +130,14 @@ export function InvoiceForm() {
   };
 
   const onSubmit = (formData: InvoiceFormValues) => {
+    // Recalculate totals based on the final validated formData.items
+    const finalTotals = calculateInvoiceTotals(formData.items);
+
     setPreparedInvoiceData({
       data: formData,
-      subtotalCatalogo,
-      subtotalVendedora,
-      totalAPagar,
+      subtotalCatalogo: finalTotals.subtotalCatalogo,
+      subtotalVendedora: finalTotals.subtotalVendedora,
+      totalAPagar: finalTotals.totalAPagar,
     });
     setIsPreviewDialogOpen(true);
     toast({
@@ -135,38 +155,34 @@ export function InvoiceForm() {
       try {
         const canvas = await html2canvas(invoiceContentElement, { scale: 2, useCORS: true, width: invoiceContentElement.scrollWidth, height: invoiceContentElement.scrollHeight });
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4'); // page format
+        const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfPageWidth = pdf.internal.pageSize.getWidth();
         const pdfPageHeight = pdf.internal.pageSize.getHeight();
         
         const imgProps = pdf.getImageProperties(imgData);
-        const imgAspectRatio = imgProps.width / imgProps.height; // width / height
+        const imgAspectRatio = imgProps.width / imgProps.height;
 
         let finalImgWidth, finalImgHeight;
 
-        // Check if image is portrait or landscape relative to A4 paper
-        if (imgAspectRatio > (pdfPageWidth / pdfPageHeight)) { // Image is wider than page
+        if (imgAspectRatio > (pdfPageWidth / pdfPageHeight)) {
             finalImgWidth = pdfPageWidth;
             finalImgHeight = finalImgWidth / imgAspectRatio;
-        } else { // Image is taller than page or fits perfectly
+        } else {
             finalImgHeight = pdfPageHeight;
             finalImgWidth = finalImgHeight * imgAspectRatio;
         }
         
-        // If scaled image is still wider than page (can happen if original image is very wide)
         if (finalImgWidth > pdfPageWidth) {
             finalImgWidth = pdfPageWidth;
             finalImgHeight = finalImgWidth / imgAspectRatio;
         }
-         // If scaled image is still taller than page (can happen if original image is very tall)
         if (finalImgHeight > pdfPageHeight) {
            finalImgHeight = pdfPageHeight;
            finalImgWidth = finalImgHeight * imgAspectRatio;
         }
 
-
         const xOffset = (pdfPageWidth - finalImgWidth) / 2;
-        const yOffset = 0; // Align to top
+        const yOffset = 0; 
 
         pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
         pdf.save(`factura-${preparedInvoiceData.data.invoiceNumber || 'documento'}.pdf`);
@@ -211,14 +227,16 @@ export function InvoiceForm() {
     try {
       const result = await parseInvoiceText({ text: textToParse });
       if (result && result.items && result.items.length > 0) {
-        const newItems = result.items.map(item => ({
-          codigo: item.codigo || `N/A-${Math.random().toString(36).substring(7)}`,
+        const newItems = result.items.map((item: InvoiceItemAIData, idx: number) => ({
+          codigo: item.codigo || `AI-TXT-${idx + 1}`,
           descripcion: item.descripcion || 'Descripción no encontrada',
           cantidad: Number(item.cantidad) || 1,
           precioCatalogo: Number(item.precioCatalogo) || 0,
           precioVendedora: Number(item.precioVendedora) || 0,
         }));
-        reset({ ...watch(), items: newItems });
+        // Using watch() to get current form values to preserve them during reset
+        const currentFormValues = watch();
+        reset({ ...currentFormValues, items: newItems });
         toast({ title: "Texto procesado", description: "Los ítems han sido cargados en el formulario." });
         setTextToParse('');
       } else {
@@ -250,7 +268,7 @@ export function InvoiceForm() {
     setSelectedImageFile(null);
     setSelectedImageDataUri(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset file input
+      fileInputRef.current.value = "";
     }
   };
 
@@ -263,14 +281,15 @@ export function InvoiceForm() {
     try {
       const result = await parseInvoiceImage({ photoDataUri: selectedImageDataUri });
       if (result && result.items && result.items.length > 0) {
-         const newItems = result.items.map(item => ({
-          codigo: item.codigo || `N/A-${Math.random().toString(36).substring(7)}`,
+         const newItems = result.items.map((item: InvoiceItemAIData, idx: number) => ({
+          codigo: item.codigo || `AI-IMG-${idx + 1}`,
           descripcion: item.descripcion || 'Descripción no encontrada',
           cantidad: Number(item.cantidad) || 1,
           precioCatalogo: Number(item.precioCatalogo) || 0,
           precioVendedora: Number(item.precioVendedora) || 0,
         }));
-        reset({ ...watch(), items: newItems });
+        const currentFormValues = watch();
+        reset({ ...currentFormValues, items: newItems });
         toast({ title: "Imagen procesada", description: "Los ítems han sido extraídos de la imagen y cargados." });
         clearSelectedImage();
       } else {
@@ -390,9 +409,10 @@ export function InvoiceForm() {
             </TableHeader>
             <TableBody>
               {fields.map((field, index) => {
-                const cantidad = watchedItems[index]?.cantidad;
-                const precioVendedora = watchedItems[index]?.precioVendedora;
-                const itemSubtotal = (Number(cantidad) || 0) * (Number(precioVendedora) || 0);
+                const currentItem = watchedItems && watchedItems[index];
+                const cantidad = parseFloat(String(currentItem?.cantidad)) || 0;
+                const precioVendedora = parseFloat(String(currentItem?.precioVendedora)) || 0;
+                const itemSubtotal = cantidad * precioVendedora;
                 return (
                   <TableRow key={field.id} className="hover:bg-muted/20">
                     <TableCell className="px-4 py-3">
@@ -418,7 +438,7 @@ export function InvoiceForm() {
                         {...register(`items.${index}.cantidad`)}
                         placeholder="0"
                         className={`h-9 text-right ${errors.items?.[index]?.cantidad ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                        onChange={(e) => setValue(`items.${index}.cantidad`, parseFloat(e.target.value) || 0)}
+                        onChange={(e) => setValue(`items.${index}.cantidad`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
                       />
                       {errors.items?.[index]?.cantidad && <p className="text-xs text-destructive mt-1">{errors.items?.[index]?.cantidad?.message}</p>}
                     </TableCell>
@@ -429,7 +449,7 @@ export function InvoiceForm() {
                         {...register(`items.${index}.precioCatalogo`)}
                         placeholder="0.00"
                         className={`h-9 text-right ${errors.items?.[index]?.precioCatalogo ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                        onChange={(e) => setValue(`items.${index}.precioCatalogo`, parseFloat(e.target.value) || 0)}
+                        onChange={(e) => setValue(`items.${index}.precioCatalogo`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
                       />
                       {errors.items?.[index]?.precioCatalogo && <p className="text-xs text-destructive mt-1">{errors.items?.[index]?.precioCatalogo?.message}</p>}
                     </TableCell>
@@ -440,7 +460,7 @@ export function InvoiceForm() {
                         {...register(`items.${index}.precioVendedora`)}
                         placeholder="0.00"
                         className={`h-9 text-right ${errors.items?.[index]?.precioVendedora ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                        onChange={(e) => setValue(`items.${index}.precioVendedora`, parseFloat(e.target.value) || 0)}
+                        onChange={(e) => setValue(`items.${index}.precioVendedora`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
                       />
                       {errors.items?.[index]?.precioVendedora && <p className="text-xs text-destructive mt-1">{errors.items?.[index]?.precioVendedora?.message}</p>}
                     </TableCell>
@@ -537,4 +557,6 @@ export function InvoiceForm() {
     </>
   );
 }
+    
+
     
