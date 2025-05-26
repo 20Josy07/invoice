@@ -36,13 +36,7 @@ export function InvoicePreview({
           {data.invoiceNumber && <p className="text-muted-foreground mt-1">Número: {data.invoiceNumber}</p>}
           <p className="text-muted-foreground">Fecha: {currentDate}</p>
         </div>
-        <div className="text-right">
-          {/* Replace with actual company details */}
-          <h2 className="text-xl font-semibold text-foreground">Factura Fácil S.A.C.</h2>
-          <p className="text-sm text-muted-foreground">Av. Siempreviva 742, Springfield</p>
-          <p className="text-sm text-muted-foreground">Teléfono: (01) 555-1234</p>
-          <p className="text-sm text-muted-foreground">RUC: 20123456789</p>
-        </div>
+        {/* Removed hardcoded company details div from here */}
       </header>
 
       {/* Client Info */}
