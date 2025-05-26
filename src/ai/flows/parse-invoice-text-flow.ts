@@ -15,7 +15,7 @@ import { z } from 'genkit';
 const InvoiceItemAISchema = z.object({
   codigo: z.string().optional().describe("Item code or SKU. Can be alphanumeric."),
   descripcion: z.string().describe("Detailed item description."),
-  cantidad: z.coerce.number().positive().describe("Quantity of the item. Must be a positive number."),
+  cantidad: z.coerce.number().min(1, { message: "Cantidad must be at least 1." }).describe("Quantity of the item. Must be a number greater than or equal to 1."),
   precioCatalogo: z.coerce.number().min(0).optional().describe("Catalog price of the item. Must be a non-negative number. Optional."),
   precioVendedora: z.coerce.number().min(0).describe("Vendor selling price of the item. Must be a non-negative number."),
 });
@@ -48,7 +48,7 @@ const prompt = ai.definePrompt({
 Para cada ítem, debes identificar y extraer la siguiente información:
 - codigo: El código o SKU del producto. Puede ser alfanumérico. Si no se encuentra, puede omitirse.
 - descripcion: La descripción detallada del producto. Este campo es obligatorio.
-- cantidad: La cantidad del producto. Debe ser un número positivo. Este campo es obligatorio.
+- cantidad: La cantidad del producto. Debe ser un número mayor o igual a 1. Este campo es obligatorio.
 - precioCatalogo: El precio de catálogo del producto. Debe ser un número no negativo. Si no se encuentra, puede omitirse.
 - precioVendedora: El precio de venta del producto por parte del vendedor. Debe ser un número no negativo. Este campo es obligatorio.
 
@@ -57,7 +57,7 @@ Consideraciones importantes:
 - Intenta ser lo más preciso posible con los números.
 - Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca.
 - No incluyas ítems que no tengan una descripción clara o una cantidad válida.
-- Es crucial que el campo 'cantidad' sea un número positivo y 'precioVendedora' sea un número.
+- Es crucial que el campo 'cantidad' sea un número mayor o igual a 1 y 'precioVendedora' sea un número no negativo.
 
 Texto de entrada:
 {{{text}}}
@@ -65,7 +65,7 @@ Texto de entrada:
 Analiza el texto y devuelve un objeto JSON. Este objeto DEBE contener una única clave llamada "items". El valor de "items" DEBE ser un array de objetos, donde cada objeto representa un ítem de la factura y se ajusta al siguiente esquema:
 - codigo (string, opcional): Código o SKU del producto.
 - descripcion (string, obligatorio): Descripción detallada.
-- cantidad (number, obligatorio, positivo): Cantidad del producto.
+- cantidad (number, obligatorio, >= 1): Cantidad del producto.
 - precioCatalogo (number, opcional, no-negativo): Precio de catálogo.
 - precioVendedora (number, obligatorio, no-negativo): Precio de venta.
 
@@ -127,3 +127,4 @@ const parseInvoiceTextFlow = ai.defineFlow(
     }
   }
 );
+
