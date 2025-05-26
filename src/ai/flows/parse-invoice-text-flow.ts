@@ -54,20 +54,40 @@ Para cada ítem, debes identificar y extraer la siguiente información:
 
 Consideraciones importantes:
 - El texto puede contener múltiples ítems, cada uno en una línea o formato variado.
-- Intenta ser lo más preciso posible con los números. Si un precio no está claro, puedes interpretarlo como 0 si es opcional, pero la cantidad y el precio de vendedora son cruciales.
+- Intenta ser lo más preciso posible con los números.
 - Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca.
-- Devuelve los datos extraídos como un array JSON de objetos. Cada objeto debe representar un ítem y seguir la estructura definida en el esquema de salida.
-- Si no puedes extraer ningún ítem válido del texto, devuelve un array vacío para el campo "items".
 - No incluyas ítems que no tengan una descripción clara o una cantidad válida.
 - Es crucial que el campo 'cantidad' sea un número positivo y 'precioVendedora' sea un número.
 
 Texto de entrada:
 {{{text}}}
 
-Por favor, proporciona ÚNICAMENTE el array JSON como respuesta, sin ningún texto adicional antes o después.
+Analiza el texto y devuelve un objeto JSON. Este objeto DEBE contener una única clave llamada "items". El valor de "items" DEBE ser un array de objetos, donde cada objeto representa un ítem de la factura y se ajusta al siguiente esquema:
+- codigo (string, opcional): Código o SKU del producto.
+- descripcion (string, obligatorio): Descripción detallada.
+- cantidad (number, obligatorio, positivo): Cantidad del producto.
+- precioCatalogo (number, opcional, no-negativo): Precio de catálogo.
+- precioVendedora (number, obligatorio, no-negativo): Precio de venta.
+
+Si no se encuentran ítems válidos, el valor de "items" debe ser un array vacío ([]).
+
+Ejemplo de formato de respuesta esperado si se encuentran ítems:
+{
+  "items": [
+    { "codigo": "COD001", "descripcion": "Camisa Talla L", "cantidad": 2, "precioCatalogo": 25, "precioVendedora": 20 },
+    { "descripcion": "Pantalón Jean", "cantidad": 1, "precioVendedora": 45 }
+  ]
+}
+
+Ejemplo de formato de respuesta esperado si NO se encuentran ítems:
+{
+  "items": []
+}
+
+Proporciona ÚNICAMENTE el objeto JSON como respuesta, sin ningún texto, explicación o markdown adicional antes o después.
 `,
   config: {
-    temperature: 0.2, // Lower temperature for more deterministic output
+    temperature: 0.1, // Lowered temperature for more deterministic JSON output
   }
 });
 
@@ -78,14 +98,24 @@ const parseInvoiceTextFlow = ai.defineFlow(
     outputSchema: ParseInvoiceTextOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) {
-        // Handle cases where the LLM might return null or undefined, though Zod schema should catch this.
-        // Log this situation or return a default empty structure.
-        console.warn("AI prompt for parseInvoiceTextFlow returned no output.");
-        return { items: [] };
+    try {
+      const { output } = await prompt(input);
+      if (!output) {
+          console.warn("AI prompt for parseInvoiceTextFlow returned no output that matched the schema. Input text:", input.text);
+          return { items: [] };
+      }
+      // Ensure items is always an array, even if the LLM fails to provide it or provides null
+      return { items: output.items || [] };
+    } catch (error) {
+      console.error("Error in parseInvoiceTextFlow execution:", error);
+      console.error("Input text that caused error:", input.text);
+      // Re-throw the error to be caught by the client-side handler,
+      // or return a default error structure if preferred.
+      // For now, re-throwing will make the client see the generic 500 error.
+      // To give a more specific error to client, you might structure it:
+      // return { error: "Failed to parse invoice text", details: (error as Error).message, items: [] };
+      // But this would require changing ParseInvoiceTextOutputSchema to include an error field.
+      throw error; 
     }
-    // Ensure items is always an array, even if the LLM fails to provide it or provides null
-    return { items: output.items || [] };
   }
 );
