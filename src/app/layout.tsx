@@ -26,8 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning> {/* Added suppressHydrationWarning */}
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="es" suppressHydrationWarning>{/* Added suppressHydrationWarning */}<body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider
           storageKey="factura-facil-theme"
           defaultTheme="system"
@@ -35,7 +34,6 @@ export default function RootLayout({
           {children}
           <Toaster />
         </ThemeProvider>
-      </body>
-    </html>
+      </body></html>
   );
 }
