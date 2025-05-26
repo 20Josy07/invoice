@@ -13,7 +13,7 @@ import { z } from 'genkit';
 
 // Schema for individual invoice items extracted by AI (re-using from text flow for consistency)
 const InvoiceItemAISchema = z.object({
-  codigo: z.string().optional().describe("Item code or SKU. Can be alphanumeric."),
+  codigo: z.string().optional().describe("Item code or SKU. Must be the actual code from the invoice. Can be alphanumeric. If no code is found in the image for an item, this field can be omitted or left as an empty string."),
   descripcion: z.string().describe("Detailed item description."),
   cantidad: z.coerce.number().min(1, { message: "Cantidad must be at least 1." }).describe("Quantity of the item. Must be a number greater than or equal to 1."),
   precioCatalogo: z.coerce.number().min(0).optional().describe("Catalog price of the item (per unit). Must be a non-negative number. Optional. This might be labeled 'Precio Total' or similar for unit price in the invoice image."),
@@ -52,7 +52,7 @@ Analiza la imagen adjunta:
 {{media url=photoDataUri}}
 
 Para cada ítem de la factura en la imagen, debes identificar y extraer la siguiente información:
-- codigo: El código o SKU del producto. Puede ser alfanumérico. Si no se encuentra, puede omitirse.
+- codigo: El código o SKU real del producto tal como aparece en la factura. Debe ser alfanumérico. Si no se encuentra un código explícito para un ítem en la imagen, este campo puede omitirse o dejarse como una cadena vacía. NO inventes códigos como 'AI-IMG-X'.
 - descripcion: La descripción detallada del producto. Este campo es obligatorio.
 - cantidad: La cantidad del producto. Debe ser un número mayor o igual a 1. Este campo es obligatorio. Columnas comunes para esto son "Cant.", "Cantidad".
 - precioCatalogo: El precio de catálogo POR UNIDAD del producto. Debe ser un número no negativo. Si no se encuentra, puede omitirse. Columnas comunes son "Precio Unitario", "P. Unit", "Precio Total" (si se refiere a unitario).
@@ -61,7 +61,7 @@ Para cada ítem de la factura en la imagen, debes identificar y extraer la sigui
 
 Consideraciones importantes:
 - La imagen puede contener múltiples ítems, generalmente en un formato tabular.
-- Intenta ser lo más preciso posible con los números. Ignora separadores de miles como puntos (.) si el separador decimal es coma (,), y viceversa. Interpreta correctamente los separadores decimales.
+- **Interpretación de números**: Presta MUCHA atención a los formatos numéricos. Si ves una coma (,) en un número, es probable que sea el separador decimal (ej. 1.234,56 debe interpretarse como 1234.56). Si ves un punto (.) como separador de miles y una coma (,) como decimal, interpreta correctamente (ej. 1.234,56 -> 1234.56). Si el formato es 1,234.56 (coma para miles, punto para decimal), también interprétalo como 1234.56. El objetivo es obtener el valor numérico correcto.
 - Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca.
 - No incluyas ítems que no tengan una descripción clara o una cantidad válida.
 - Es crucial que el campo 'cantidad' sea un número mayor o igual a 1 y 'precioVendedora' sea un número no negativo.
@@ -69,7 +69,7 @@ Consideraciones importantes:
 Texto de entrada: (Referencia a la imagen {{media url=photoDataUri}})
 
 Analiza la imagen y devuelve un objeto JSON. Este objeto DEBE contener una única clave llamada "items". El valor de "items" DEBE ser un array de objetos, donde cada objeto representa un ítem de la factura y se ajusta al siguiente esquema:
-- codigo (string, opcional)
+- codigo (string, opcional): El código REAL del producto, si existe.
 - descripcion (string, obligatorio)
 - cantidad (number, obligatorio, >= 1)
 - precioCatalogo (number, opcional, no-negativo, por unidad)
@@ -93,7 +93,7 @@ Ejemplo de formato de respuesta esperado si NO se encuentran ítems:
 Proporciona ÚNICAMENTE el objeto JSON como respuesta, sin ningún texto, explicación o markdown adicional antes o después.
 `,
   config: {
-    temperature: 0.2, // Slightly higher temp for image interpretation flexibility but still structured output
+    temperature: 0.25, // Slightly increased temp for more flexibility in image interpretation, but still structured.
   }
 });
 
@@ -143,3 +143,4 @@ const parseInvoiceImageFlow = ai.defineFlow(
     }
   }
 );
+
