@@ -12,14 +12,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle as DialogTitleComponent } from '@/components/ui/dialog'; // Renamed to avoid conflict
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { InvoicePreview } from './invoice-preview';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { parseInvoiceText } from '@/ai/flows/parse-invoice-text-flow'; // To be created
+import { parseInvoiceText } from '@/ai/flows/parse-invoice-text-flow';
 
 const invoiceItemSchema = z.object({
   codigo: z.string().min(1, "Código es requerido."),
@@ -376,10 +376,10 @@ export function InvoiceForm() {
         <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
           <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
             <DialogHeader className="p-6 pb-0">
-              <DialogTitle className="text-2xl">Previsualización de Factura</DialogTitle>
-              <DialogDescription>
+              <DialogTitleComponent className="text-2xl">Previsualización de Factura</DialogTitleComponent>
+              <DialogDescriptionComponent>
                 Revise la factura antes de descargarla.
-              </DialogDescription>
+              </DialogDescriptionComponent>
             </DialogHeader>
             <div className="flex-grow overflow-auto p-6 pt-0">
               <InvoicePreview invoiceDetails={preparedInvoiceData} />
@@ -401,3 +401,4 @@ export function InvoiceForm() {
     </>
   );
 }
+
