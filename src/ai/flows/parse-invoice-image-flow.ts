@@ -57,28 +57,33 @@ Para cada ítem de la factura en la imagen, debes identificar y extraer la sigui
 - cantidad: La cantidad del producto. Debe ser un número mayor o igual a 1. Este campo es obligatorio. Columnas comunes para esto son "Cant.", "Cantidad".
 - precioCatalogo: El precio de catálogo POR UNIDAD del producto. Debe ser un número no negativo. Si no se encuentra, puede omitirse. Columnas comunes son "Precio Unitario", "P. Unit", "Valor Unitario", "Precio Total" (si se refiere a unitario).
 - precioVendedora: El precio de venta POR UNIDAD del producto por parte del vendedor. Debe ser un número no negativo. Este campo es obligatorio.
-  IMPORTANTE: Si la factura muestra un precio total para la línea del ítem (ej. en columnas como "Vr. Neto", "Subtotal", "Importe Línea", "Total Item", "Valor Total"), DEBES CALCULAR el precioVendedora unitario dividiendo ese total de línea entre la 'cantidad' del ítem. Asegúrate de que este es el precio final por unidad.
+  IMPORTANTE: Si la factura muestra un precio total para la línea del ítem (ej. en columnas como "Vr. Neto", "Subtotal", "Importe Línea", "Total Item", "Valor Total"), DEBES CALCULAR el precioVendedora unitario.
+  **Pasos para calcular precioVendedora unitario desde un total de línea:**
+    1. Extrae el texto del precio total de la línea (ej. "40.498,00") y el texto de la cantidad (ej. "2").
+    2. **Convierte estos textos a números INTERNAMENTE siguiendo la "Lógica de Limpieza y Conversión" detallada abajo.** Por ejemplo, "40.498,00" se convierte al número 40498.00, y "2" al número 2.
+    3. Realiza la división: 40498.00 / 2 = 20249.00.
+    4. El resultado (20249.00) es el valor numérico que usarás para el campo \\\`precioVendedora\\\`. Luego, formatea este número como una cadena para el JSON según las reglas de formato de salida.
 
 Consideraciones importantes para la extracción:
 - **Manejo de Imágenes Inclinadas o Distorsionadas**: Las facturas pueden estar fotografiadas con cierta inclinación. Presta especial atención a la alineación de las FILAS. Asegúrate de que todos los datos extraídos para un solo ítem (código, descripción, cantidad, precios) provengan de la misma fila visual en la imagen. Verifica que los valores de una columna no se mezclen con los de otra columna adyacente debido a la inclinación.
 - **Identificación de Columnas**: Busca encabezados de columna comunes. Esto te ayudará a identificar correctamente qué información corresponde a cada campo. Encabezados típicos son: "Código", "SKU", "REF", "Descripción", "Detalle", "Producto", "Cant.", "Cantidad", "P. Unit.", "Precio Unit.", "Val. Unit.", "Precio Catálogo", "P. Venta", "Precio Vendedor", "Importe", "Subtotal Línea", "Vr. Neto", "Valor Total".
 
 - **Interpretación y Formato de Números para JSON (MUY IMPORTANTE)**:
-  Los números en las facturas pueden tener formatos locales. Tu tarea es interpretar estos números y luego, al generar el objeto JSON, formatear los valores para los campos numéricos (\\\`cantidad\\\`, \\\`precioCatalogo\\\`, \\\`precioVendedora\\\`) de la siguiente manera:
+  Los números en las facturas pueden tener formatos locales (ej. "1.234,50" o "1,234.50"). Tu tarea es interpretar estos números correctamente para cualquier cálculo INTERNO y luego, al generar el objeto JSON, formatear los valores numéricos FINALES (\\\`cantidad\\\`, \\\`precioCatalogo\\\`, \\\`precioVendedora\\\`) de la siguiente manera:
   El valor en el JSON para estos campos DEBE SER una cadena que represente el número usando un punto (\\\`.\`) como separador decimal y SIN NINGÚN separador de miles.
-  **Lógica de Limpieza que DEBES aplicar mentalmente antes de escribir el JSON**:
+
+  **Lógica de Limpieza y Conversión (para uso INTERNO y para el JSON FINAL)**:
+  Para cualquier número que extraigas de la imagen (sea para usar en un cálculo como el de \\\`precioVendedora\\\` unitario, o para formatear directamente para el JSON):
     1.  Elimina cualquier símbolo de moneda ($, €, S/, etc.) y espacios en blanco del número extraído de la imagen.
-    2.  Identifica el carácter usado como separador decimal en la factura. Por ejemplo, en "1.234,56" la coma es decimal. En "1,234.56" el punto es decimal. En "22,50" la coma es decimal. En "9.749" (si es nueve mil) no hay decimal explícito.
-    3.  Una vez identificado el separador decimal original, para el JSON, usa SIEMPRE un punto (\\\`.\`) como separador decimal.
-    4.  Elimina TODOS los OTROS puntos o comas que eran separadores de miles.
-  **Ejemplos de cómo DEBE ser el valor en el JSON (basado en lo que ves en la imagen)**:
-    - Si en la imagen ves "1.234,56" (coma es decimal): En JSON, el campo debe ser \\\`"1234.56"\\\`
-    - Si en la imagen ves "1,234.56" (punto es decimal): En JSON, el campo debe ser \\\`"1234.56"\\\`
-    - Si en la imagen ves "9,749" (significa nueve mil setecientos cuarenta y nueve): En JSON, el campo debe ser \\\`"9749"\\\` (o \\\`"9749.00"\\\`)
-    - Si en la imagen ves "54.999" (significa cincuenta y cuatro mil novecientos noventa y nueve): En JSON, el campo debe ser \\\`"54999"\\\` (o \\\`"54999.00"\\\`)
-    - Si en la imagen ves "22,50" (significa veintidós con cincuenta): En JSON, el campo debe ser \\\`"22.50"\\\`
-    - Si en la imagen ves "S/ 1,500.00" (significa mil quinientos): En JSON, el campo debe ser \\\`"1500.00"\\\`
-  El objetivo es que Zod (el validador) reciba una cadena como \\\`"9749"\\\` o \\\`"22.50"\\\` que pueda convertir directamente a un número. NO incluyas comas como separadores de miles en la cadena del JSON.
+    2.  **Identifica el separador decimal REAL de la factura.** En formatos como "1.234,56", la coma es el decimal. En "1,234.56", el punto es el decimal. En "22,50", la coma es el decimal. En "9.749" (si es nueve mil setecientos cuarenta y nueve), la coma implícita sería el decimal (o no hay decimales, es un entero).
+    3.  **Para tus cálculos internos y para el formato JSON final, el separador decimal DEBE ser un punto ('.').** Si el decimal original era una coma, reemplázala por un punto.
+    4.  **Elimina TODOS los OTROS puntos o comas que eran separadores de miles.**
+  **Ejemplos de conversión INTERNA y para el JSON FINAL (basado en lo que ves en la imagen)**:
+    - Si en la imagen ves "1.234,56" (coma es decimal): Internamente usas 1234.56. En JSON, el campo debe ser \\\`"1234.56"\\\`.
+    - Si en la imagen ves "1,234.56" (punto es decimal): Internamente usas 1234.56. En JSON, el campo debe ser \\\`"1234.56"\\\`.
+    - Si en la imagen ves "9.749" (significa nueve mil setecientos cuarenta y nueve): Internamente usas 9749. En JSON, el campo debe ser \\\`"9749"\\\` (o \\\`"9749.00"\\\`).
+    - Si en la imagen ves "S/ 40.498,00" (significa cuarenta mil cuatrocientos noventa y ocho): Internamente usas 40498.00. En JSON, el campo debe ser \\\`"40498.00"\\\`.
+    - Si en la imagen ves "22,50" (significa veintidós con cincuenta): Internamente usas 22.50. En JSON, el campo debe ser \\\`"22.50"\\\`.
 
 - Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca en la misma fila.
 - No incluyas ítems que no tengan una descripción clara o una cantidad válida.
@@ -89,9 +94,9 @@ Texto de entrada: (Referencia a la imagen {{media url=photoDataUri}})
 Analiza la imagen y devuelve un objeto JSON. Este objeto DEBE contener una única clave llamada "items". El valor de "items" DEBE ser un array de objetos, donde cada objeto representa un ítem de la factura y se ajusta al siguiente esquema:
 - codigo (string, opcional): El código REAL del producto, si existe. Si no existe, DEBE ser una cadena vacía ("") u omitido. NO INVENTAR NADA.
 - descripcion (string, obligatorio)
-- cantidad (number, obligatorio, >= 1) (Zod espera una cadena formateada como "1", "2", etc.)
-- precioCatalogo (number, opcional, no-negativo, por unidad) (Zod espera una cadena formateada como "25.00", "1500")
-- precioVendedora (number, obligatorio, no-negativo, por unidad) (Zod espera una cadena formateada como "20.00", "45.50")
+- cantidad (number, obligatorio, >= 1) (Zod espera una cadena formateada como "1", "2", etc., ej. \\\`"1"\\\`)
+- precioCatalogo (number, opcional, no-negativo, por unidad) (Zod espera una cadena formateada como "25.00", "1500", ej. \\\`"25.00"\\\`)
+- precioVendedora (number, obligatorio, no-negativo, por unidad) (Zod espera una cadena formateada como "20.00", "45.50", ej. \\\`"45.50"\\\`)
 
 Si no se encuentran ítems válidos, el valor de "items" debe ser un array vacío ([]).
 
@@ -111,7 +116,7 @@ Ejemplo de formato de respuesta esperado si NO se encuentran ítems:
 Proporciona ÚNICAMENTE el objeto JSON como respuesta, sin ningún texto, explicación o markdown adicional antes o después.
 `,
   config: {
-    temperature: 0.15, 
+    temperature: 0.1, 
   }
 });
 
