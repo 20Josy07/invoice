@@ -13,7 +13,7 @@ import { z } from 'genkit';
 
 // Schema for individual invoice items extracted by AI (re-using from text flow for consistency)
 const InvoiceItemAISchema = z.object({
-  codigo: z.string().optional().describe("Item code or SKU. Must be the actual code from the invoice. Can be alphanumeric. If no code is found in the image for an item, this field can be omitted or left as an empty string."),
+  codigo: z.string().optional().describe("Item code or SKU. Must be the actual code from the invoice. Can be alphanumeric. If no code is found in the image for an item, this field MUST be an empty string \"\" or omitted."),
   descripcion: z.string().describe("Detailed item description."),
   cantidad: z.coerce.number().min(1, { message: "Cantidad must be at least 1." }).describe("Quantity of the item. Must be a number greater than or equal to 1."),
   precioCatalogo: z.coerce.number().min(0).optional().describe("Catalog price of the item (per unit). Must be a non-negative number. Optional. This might be labeled 'Precio Total' or similar for unit price in the invoice image."),
@@ -51,69 +51,58 @@ const prompt = ai.definePrompt({
 Analiza la imagen adjunta:
 {{media url=photoDataUri}}
 
-Para cada ítem de la factura en la imagen, debes identificar y extraer la siguiente información:
-- codigo: El código o SKU REAL del producto tal como aparece en la factura. Debe ser alfanumérico. **Es CRUCIAL que NO INVENTES códigos.** Si no encuentras un código explícito para un ítem en la imagen (por ejemplo, en columnas tituladas "Código", "SKU", "REF", "Item"), DEJA este campo como una cadena vacía ("") o omítelo por completo. NO uses placeholders como 'AI-IMG-X' NI NINGÚN OTRO VALOR GENÉRICO.
-- descripcion: La descripción detallada del producto. Este campo es obligatorio.
-- cantidad: La cantidad del producto. Debe ser un número mayor o igual a 1. Este campo es obligatorio. Columnas comunes para esto son "Cant.", "Cantidad".
-- precioCatalogo: El precio de catálogo POR UNIDAD del producto. Debe ser un número no negativo. Si no se encuentra, puede omitirse. Columnas comunes son "Precio Unitario", "P. Unit", "Valor Unitario", "Precio Total" (si se refiere a unitario).
-- precioVendedora: El precio de venta POR UNIDAD del producto por parte del vendedor. Debe ser un número no negativo. Este campo es obligatorio.
-  IMPORTANTE: Si la factura muestra un precio total para la línea del ítem (ej. en columnas como "Vr. Neto", "Subtotal", "Importe Línea", "Total Item", "Valor Total"), DEBES CALCULAR el precioVendedora unitario.
-  **Pasos para calcular precioVendedora unitario desde un total de línea:**
-    1. Extrae el texto del precio total de la línea (ej. "40.498,00") y el texto de la cantidad (ej. "2").
-    2. **Convierte estos textos a números INTERNAMENTE siguiendo la "Lógica de Limpieza y Conversión" detallada abajo.** Por ejemplo, "40.498,00" se convierte al número 40498.00, y "2" al número 2.
-    3. Realiza la división: 40498.00 / 2 = 20249.00.
-    4. El resultado (20249.00) es el valor numérico que usarás para el campo \\\`precioVendedora\\\`. Luego, formatea este número como una cadena para el JSON según las reglas de formato de salida.
+**Reglas Cruciales para la Extracción de Ítems:**
 
-Consideraciones importantes para la extracción:
-- **Manejo de Imágenes Inclinadas o Distorsionadas**: Las facturas pueden estar fotografiadas con cierta inclinación. Presta especial atención a la alineación de las FILAS. Asegúrate de que todos los datos extraídos para un solo ítem (código, descripción, cantidad, precios) provengan de la misma fila visual en la imagen. Verifica que los valores de una columna no se mezclen con los de otra columna adyacente debido a la inclinación.
-- **Identificación de Columnas**: Busca encabezados de columna comunes. Esto te ayudará a identificar correctamente qué información corresponde a cada campo. Encabezados típicos son: "Código", "SKU", "REF", "Descripción", "Detalle", "Producto", "Cant.", "Cantidad", "P. Unit.", "Precio Unit.", "Val. Unit.", "Precio Catálogo", "P. Venta", "Precio Vendedor", "Importe", "Subtotal Línea", "Vr. Neto", "Valor Total".
+1.  **Procesamiento por Fila (MUY IMPORTANTE para evitar datos corridos)**:
+    *   Identifica visualmente cada FILA de ítem en la factura.
+    *   Para CADA objeto de ítem que generes en el JSON, TODOS sus datos (código, descripción, cantidad, precios) DEBEN provenir de la MISMA FILA VISUAL en la imagen.
+    *   Presta EXTREMA atención a los límites de las columnas DENTRO de esa fila. No mezcles datos de columnas o filas adyacentes. Si la imagen está inclinada, sigue la línea visual de la fila.
 
-- **Interpretación y Formato de Números para JSON (MUY IMPORTANTE)**:
-  Los números en las facturas pueden tener formatos locales (ej. "1.234,50" o "1,234.50"). Tu tarea es interpretar estos números correctamente para cualquier cálculo INTERNO y luego, al generar el objeto JSON, formatear los valores numéricos FINALES (\\\`cantidad\\\`, \\\`precioCatalogo\\\`, \\\`precioVendedora\\\`) de la siguiente manera:
-  El valor en el JSON para estos campos DEBE SER una cadena que represente el número usando un punto (\\\`.\`) como separador decimal y SIN NINGÚN separador de miles.
+2.  **Extracción de Campos por Ítem:**
+    *   **codigo**: El código o SKU REAL del producto tal como aparece en la factura (en columnas como "Código", "SKU", "REF", "Item"). Debe ser alfanumérico.
+        *   **CRÍTICO: NO INVENTES CÓDIGOS.** Si no encuentras un código explícito para un ítem en la imagen, el campo \`codigo\` en el JSON DEBE ser una cadena vacía ("") o ser omitido. NO uses "AI-IMG-X" ni ningún placeholder.
+    *   **descripcion**: La descripción detallada del producto. Campo obligatorio.
+    *   **cantidad**: La cantidad del producto. Busca en columnas como "Cant.", "Cantidad". Campo obligatorio.
+    *   **precioCatalogo**: El precio de catálogo POR UNIDAD. Opcional si no está. Busca en columnas como "Precio Unitario", "P. Unit", "Valor Unitario".
+    *   **precioVendedora**: El precio de venta POR UNIDAD del vendedor. Campo obligatorio.
+        *   **Cálculo desde Total de Línea**: Si la factura muestra un precio total para la línea del ítem (ej. en columnas "Vr. Neto", "Subtotal", "Importe", "Valor Total"), DEBES CALCULAR el \`precioVendedora\` unitario.
+            1. Extrae el texto del precio total de línea (ej. "40.498,00") y el texto de la cantidad (ej. "2").
+            2. Internamente, convierte estos textos a números usando la "Lógica de Conversión Numérica para JSON" de abajo. (ej. "40.498,00" se convierte a 40498.00, "2" a 2).
+            3. Divide: 40498.00 / 2 = 20249.00.
+            4. El resultado (20249.00) es el número que usarás. Formatea este número como una cadena para el JSON según la lógica de abajo (ej. "20249.00").
 
-  **Lógica de Limpieza y Conversión (para uso INTERNO y para el JSON FINAL)**:
-  Para cualquier número que extraigas de la imagen (sea para usar en un cálculo como el de \\\`precioVendedora\\\` unitario, o para formatear directamente para el JSON):
-    1.  Elimina cualquier símbolo de moneda ($, €, S/, etc.) y espacios en blanco del número extraído de la imagen.
-    2.  **Identifica el separador decimal REAL de la factura.** En formatos como "1.234,56", la coma es el decimal. En "1,234.56", el punto es el decimal. En "22,50", la coma es el decimal. En "9.749" (si es nueve mil setecientos cuarenta y nueve), la coma implícita sería el decimal (o no hay decimales, es un entero).
-    3.  **Para tus cálculos internos y para el formato JSON final, el separador decimal DEBE ser un punto ('.').** Si el decimal original era una coma, reemplázala por un punto.
-    4.  **Elimina TODOS los OTROS puntos o comas que eran separadores de miles.**
-  **Ejemplos de conversión INTERNA y para el JSON FINAL (basado en lo que ves en la imagen)**:
-    - Si en la imagen ves "1.234,56" (coma es decimal): Internamente usas 1234.56. En JSON, el campo debe ser \\\`"1234.56"\\\`.
-    - Si en la imagen ves "1,234.56" (punto es decimal): Internamente usas 1234.56. En JSON, el campo debe ser \\\`"1234.56"\\\`.
-    - Si en la imagen ves "9.749" (significa nueve mil setecientos cuarenta y nueve): Internamente usas 9749. En JSON, el campo debe ser \\\`"9749"\\\` (o \\\`"9749.00"\\\`).
-    - Si en la imagen ves "S/ 40.498,00" (significa cuarenta mil cuatrocientos noventa y ocho): Internamente usas 40498.00. En JSON, el campo debe ser \\\`"40498.00"\\\`.
-    - Si en la imagen ves "22,50" (significa veintidós con cincuenta): Internamente usas 22.50. En JSON, el campo debe ser \\\`"22.50"\\\`.
+3.  **Lógica de Conversión Numérica para JSON (MUY IMPORTANTE para \`cantidad\`, \`precioCatalogo\`, \`precioVendedora\`):**
+    *   Cuando extraes un valor numérico de la imagen (ej. "2", "S/ 20.249,00", "1.234,56"):
+        1.  Elimina cualquier símbolo de moneda ($, €, S/, etc.) y espacios. (ej. "20.249,00", "1.234,56").
+        2.  Identifica el separador decimal en la imagen. Para formatos como "20.249,00" o "1.234,56", la COMA (,) es el decimal. Para formatos como "1,234.56", el PUNTO (.) es el decimal. Para enteros como "2" o "9749", no hay decimal (o es implícito).
+        3.  Para generar la cadena en el JSON:
+            *   Reemplaza el separador decimal original (si es coma) por un PUNTO (.).
+            *   Elimina TODOS los OTROS puntos o comas que eran separadores de miles.
+            *   El resultado DEBE SER una cadena numérica que JavaScript pueda interpretar directamente con \`parseFloat()\`.
+    *   **Ejemplos de Transformación para el JSON FINAL (Texto en Imagen -> Cadena en JSON):**
+        *   Imagen: "2" -> JSON: \`"2"\`
+        *   Imagen: "S/ 20.249,00" (coma es decimal) -> JSON: \`"20249.00"\`
+        *   Imagen: "1.234,56" (coma es decimal) -> JSON: \`"1234.56"\`
+        *   Imagen: "9.749" (entero, sin decimal explícito) -> JSON: \`"9749"\` o \`"9749.00"\`
+        *   Imagen: "22,50" (coma es decimal) -> JSON: \`"22.50"\`
+        *   Imagen: "1,234.56" (punto es decimal) -> JSON: \`"1234.56"\`
 
-- Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca en la misma fila.
-- No incluyas ítems que no tengan una descripción clara o una cantidad válida.
-- Es crucial que el campo 'cantidad' sea un número mayor o igual a 1 y 'precioVendedora' sea un número no negativo.
+4.  **Formato de Salida JSON (Obligatorio):**
+    *   Debes devolver un objeto JSON.
+    *   Este objeto DEBE contener una ÚNICA clave llamada \`"items"\`.
+    *   El valor de \`"items"\` DEBE ser un array de objetos. Cada objeto representa un ítem y se ajusta al esquema descrito (codigo, descripcion, cantidad, precioCatalogo, precioVendedora).
+    *   Los campos numéricos (\`cantidad\`, \`precioCatalogo\`, \`precioVendedora\`) deben ser las CADENAS NUMÉRICAS limpias y formateadas como se explicó arriba.
+    *   Si no se encuentran ítems válidos, \`"items"\` debe ser un array vacío (\`[]\`).
 
-Texto de entrada: (Referencia a la imagen {{media url=photoDataUri}})
-
-Analiza la imagen y devuelve un objeto JSON. Este objeto DEBE contener una única clave llamada "items". El valor de "items" DEBE ser un array de objetos, donde cada objeto representa un ítem de la factura y se ajusta al siguiente esquema:
-- codigo (string, opcional): El código REAL del producto, si existe. Si no existe, DEBE ser una cadena vacía ("") u omitido. NO INVENTAR NADA.
-- descripcion (string, obligatorio)
-- cantidad (number, obligatorio, >= 1) (Zod espera una cadena formateada como "1", "2", etc., ej. \\\`"1"\\\`)
-- precioCatalogo (number, opcional, no-negativo, por unidad) (Zod espera una cadena formateada como "25.00", "1500", ej. \\\`"25.00"\\\`)
-- precioVendedora (number, obligatorio, no-negativo, por unidad) (Zod espera una cadena formateada como "20.00", "45.50", ej. \\\`"45.50"\\\`)
-
-Si no se encuentran ítems válidos, el valor de "items" debe ser un array vacío ([]).
-
-Ejemplo de formato de respuesta esperado si se encuentran ítems (observa las cadenas para los números):
+Ejemplo de JSON esperado si se encuentran ítems (observa las CADENAS para números):
 {
   "items": [
     { "codigo": "COD001", "descripcion": "Camisa Talla L", "cantidad": "2", "precioCatalogo": "25.00", "precioVendedora": "20.00" },
-    { "descripcion": "Pantalón Jean Azul", "cantidad": "1", "precioVendedora": "45.50" }
+    { "descripcion": "Pantalón Jean Azul", "cantidad": "1", "precioVendedora": "45.50" } // "codigo" omitido porque no se encontró
   ]
 }
 
-Ejemplo de formato de respuesta esperado si NO se encuentran ítems:
-{
-  "items": []
-}
-
-Proporciona ÚNICAMENTE el objeto JSON como respuesta, sin ningún texto, explicación o markdown adicional antes o después.
+Proporciona ÚNICAMENTE el objeto JSON como respuesta, sin ningún texto, explicación o markdown adicional.
 `,
   config: {
     temperature: 0.1, 
@@ -149,7 +138,7 @@ const parseInvoiceImageFlow = ai.defineFlow(
       let errorMessage = 'Unknown error during prompt execution.';
       if (error instanceof Error) {
         // Log essential error details as a string
-        errorMessage = `Name: ${error.name}, Message: ${error.message}, Stack: ${error.stack}`;
+        errorMessage = `Name: ${error.name}, Message: ${error.message}, Stack: ${error.stack ? error.stack.substring(0, 500) : 'No stack'}`; // Limit stack trace length
       } else {
         // Try to stringify non-Error objects
         try {
