@@ -11,19 +11,19 @@ Factura Fácil es una aplicación web moderna construida con Next.js que simplif
     *   Cálculo automático en tiempo real de subtotales por ítem, subtotales generales (catálogo y vendedora) y el total a pagar.
 *   **Extracción de Ítems con IA (Inteligencia Artificial):**
     *   **Desde Texto:** Pega texto no estructurado que contenga los detalles de los ítems de una factura, y la IA (potenciada por Genkit y Gemini) los analizará y cargará automáticamente en la tabla de ítems.
-    *   **Desde Imagen:** Sube una imagen de una factura (foto o escaneo), y la IA realizará OCR (Reconocimiento Óptico de Caracteres) y extracción estructurada de datos para popular la tabla de ítems.
+    *   **Desde Imagen:** Sube una imagen de una factura (foto o escaneo). La imagen se comprime en el navegador para optimizar la subida. Luego, la IA realiza OCR (Reconocimiento Óptico de Caracteres) y extracción estructurada de datos para popular la tabla de ítems, con especial atención a la correcta interpretación de formatos numéricos y códigos de producto.
 *   **Previsualización y Descarga:**
-    *   Visualiza la factura en tiempo real a medida que ingresas los datos.
+    *   Visualiza la factura en tiempo real a medida que ingresas los datos. La previsualización mantiene un tema claro consistente independientemente del modo de la aplicación.
     *   Descarga la factura generada en formato **PDF**.
     *   Descarga la factura generada como una imagen **PNG**.
 *   **Interfaz de Usuario Moderna y Adaptable:**
     *   Diseño limpio y profesional utilizando componentes de [ShadCN UI](https://ui.shadcn.com/) y [Tailwind CSS](https://tailwindcss.com/).
-    *   Soporte para **Modo Claro y Modo Oscuro**, con detección de la preferencia del sistema y persistencia en el almacenamiento local.
+    *   Soporte para **Modo Claro y Modo Oscuro**, con detección de la preferencia del sistema, interruptor manual y persistencia en el almacenamiento local.
     *   Notificaciones (toasts) amigables para feedback al usuario.
 *   **Tecnología de Vanguardia:**
     *   Desarrollado con [Next.js](https://nextjs.org/) (App Router, Server Components, Server Actions).
     *   [Genkit](https://firebase.google.com/docs/genkit) para la orquestación de flujos de IA.
-    *   Modelos de IA de [Google Gemini](https://deepmind.google/technologies/gemini/) para las capacidades de IA generativa (comprensión de texto e imágenes).
+    *   Modelos de IA de [Google Gemini](https://deepmind.google.com/technologies/gemini/) para las capacidades de IA generativa (comprensión de texto e imágenes).
 
 ## 🛠️ Tech Stack
 
@@ -33,6 +33,7 @@ Factura Fácil es una aplicación web moderna construida con Next.js que simplif
 *   **Estilos:** Tailwind CSS
 *   **IA:** Genkit, Google Gemini (a través de `@genkit-ai/googleai`)
 *   **Generación PDF/PNG:** `jspdf`, `html2canvas`
+*   **Compresión de Imágenes (Cliente):** `browser-image-compression`
 *   **Validación de Formularios:** `react-hook-form`, `zod`
 
 ## 🚀 Cómo Empezar
