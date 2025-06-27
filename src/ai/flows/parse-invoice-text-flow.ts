@@ -54,6 +54,7 @@ Para cada ítem, debes identificar y extraer la siguiente información:
 
 Consideraciones importantes:
 - El texto puede contener múltiples ítems, cada uno en una línea o formato variado.
+- **Formato de Números**: Al extraer números (cantidad, precios), ignora los separadores de miles (puntos o comas) y usa un punto como único separador decimal. Por ejemplo, si el texto dice "20.499,50" o "20,499.50", el número a usar es 20499.50. Los valores numéricos en el JSON deben ser números, no cadenas.
 - Intenta ser lo más preciso posible con los números.
 - Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca.
 - No incluyas ítems que no tengan una descripción clara o una cantidad válida.
@@ -75,7 +76,7 @@ Ejemplo de formato de respuesta esperado si se encuentran ítems:
 {
   "items": [
     { "codigo": "COD001", "descripcion": "Camisa Talla L", "cantidad": 2, "precioCatalogo": 25, "precioVendedora": 20 },
-    { "descripcion": "Pantalón Jean", "cantidad": 1, "precioVendedora": 45 }
+    { "descripcion": "Pantalón Jean", "cantidad": 1, "precioVendedora": 45.50 }
   ]
 }
 
@@ -100,31 +101,38 @@ const parseInvoiceTextFlow = ai.defineFlow(
   async (input) => {
     try {
       const { output } = await prompt(input);
-      // The `prompt` call handles schema validation based on `outputSchema`.
-      // If `output` is null/undefined or `output.items` is not an array here,
-      // it means the LLM's response was problematic (e.g., empty, wrong structure but not a Zod error)
-      // or Zod parsing within the prompt still resulted in an undefined output for 'items'.
+
       if (!output || !Array.isArray(output.items)) {
+          let outputDetails = 'undefined or null';
+          if (output) {
+            try {
+              outputDetails = JSON.stringify(output, null, 2);
+            } catch (e) {
+              outputDetails = 'Unstringifiable output object received from AI prompt.';
+            }
+          }
           console.warn(
-            "[parseInvoiceTextFlow] AI prompt returned an unexpected output structure, no items, or items was not an array. Input text:",
-            input.text,
-            "Raw output received:", output
+            `[parseInvoiceTextFlow] AI prompt returned an unexpected output structure. Expected { items: [...] } but received: ${outputDetails}. Falling back to empty items array.`
           );
-          return { items: [] }; // Default to empty items, conforming to ParseInvoiceTextOutputSchema
+          return { items: [] };
       }
-      // Ensure items is always an array, even if the LLM fails to provide it or provides null
       return { items: output.items || [] };
     } catch (error) {
+      let errorMessage = 'Unknown error during prompt execution.';
+      if (error instanceof Error) {
+        errorMessage = `Name: ${error.name}, Message: ${error.message}, Stack: ${error.stack ? error.stack.substring(0, 500) : 'No stack'}`;
+      } else {
+        try {
+          errorMessage = JSON.stringify(error, null, 2);
+        } catch (e) {
+          errorMessage = 'Unstringifiable error object caught during prompt execution.';
+        }
+      }
       console.error(
-        "[parseInvoiceTextFlow] Critical error during execution. Input text:",
-        input.text,
-        "Error details:",
-        error instanceof Error ? { message: error.message, stack: error.stack, name: error.name } : error
+        `[parseInvoiceTextFlow] Critical error during AI prompt execution. Input text: "${input.text}". Error details: ${errorMessage}. Falling back to empty items array.`
       );
       // Always return a valid ParseInvoiceTextOutput structure to prevent Server Component crashes.
-      // The client-side will show a toast indicating an error or no items found.
       return { items: [] };
     }
   }
 );
-
