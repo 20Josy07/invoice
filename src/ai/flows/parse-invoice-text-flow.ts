@@ -43,49 +43,52 @@ const prompt = ai.definePrompt({
   name: 'parseInvoiceTextPrompt',
   input: { schema: ParseInvoiceTextInputSchema },
   output: { schema: ParseInvoiceTextOutputSchema },
-  prompt: `Eres un asistente experto en extracción de datos de facturas. Tu tarea es analizar el texto proporcionado y extraer los detalles de cada ítem de la factura.
-
-Para cada ítem, debes identificar y extraer la siguiente información:
-- codigo: El código o SKU del producto. Puede ser alfanumérico. Si no se encuentra, puede omitirse.
-- descripcion: La descripción detallada del producto. Este campo es obligatorio.
-- cantidad: La cantidad del producto. Debe ser un número mayor o igual a 1. Este campo es obligatorio.
-- precioCatalogo: El precio de catálogo del producto. Debe ser un número no negativo. Si no se encuentra, puede omitirse.
-- precioVendedora: El precio de venta del producto por parte del vendedor. Debe ser un número no negativo. Este campo es obligatorio.
-
-Consideraciones importantes:
-- El texto puede contener múltiples ítems, cada uno en una línea o formato variado.
-- **Formato de Números**: Al extraer números (cantidad, precios), ignora los separadores de miles (puntos o comas) y usa un punto como único separador decimal. Por ejemplo, si el texto dice "20.499,50" o "20,499.50", el número a usar es 20499.50. Los valores numéricos en el JSON deben ser números, no cadenas.
-- Intenta ser lo más preciso posible con los números.
-- Si la descripción es muy corta o parece un código, intenta encontrar una descripción más completa si está disponible cerca.
-- No incluyas ítems que no tengan una descripción clara o una cantidad válida.
-- Es crucial que el campo 'cantidad' sea un número mayor o igual a 1 y 'precioVendedora' sea un número no negativo.
+  prompt: `Eres un asistente experto en extracción de datos de facturas a partir de texto. Tu tarea es analizar el texto proporcionado y extraer los detalles de cada ítem de la factura.
 
 Texto de entrada:
 {{{text}}}
 
-Analiza el texto y devuelve un objeto JSON. Este objeto DEBE contener una única clave llamada "items". El valor de "items" DEBE ser un array de objetos, donde cada objeto representa un ítem de la factura y se ajusta al siguiente esquema:
-- codigo (string, opcional): Código o SKU del producto.
-- descripcion (string, obligatorio): Descripción detallada.
-- cantidad (number, obligatorio, >= 1): Cantidad del producto.
-- precioCatalogo (number, opcional, no-negativo): Precio de catálogo.
-- precioVendedora (number, obligatorio, no-negativo): Precio de venta.
+**Reglas Cruciales para la Extracción de Ítems:**
 
-Si no se encuentran ítems válidos, el valor de "items" debe ser un array vacío ([]).
+1.  **Procesamiento por Ítem**:
+    *   Identifica cada ítem o línea de producto en el texto.
+    *   Para CADA objeto de ítem que generes en el JSON, TODOS sus datos (código, descripción, cantidad, precios) DEBEN pertenecer al mismo ítem del texto de entrada.
 
-Ejemplo de formato de respuesta esperado si se encuentran ítems:
+2.  **Extracción de Campos por Ítem:**
+    *   **codigo**: El código o SKU del producto. Debe ser alfanumérico. Si no se encuentra un código explícito para un ítem, el campo \`codigo\` en el JSON puede ser omitido. **NO INVENTES CÓDIGOS**.
+    *   **descripcion**: La descripción detallada del producto. Campo obligatorio.
+    *   **cantidad**: La cantidad del producto. Campo obligatorio.
+    *   **precioCatalogo**: El precio de catálogo por unidad. Opcional si no está.
+    *   **precioVendedora**: El precio de venta por unidad del vendedor. Campo obligatorio.
+
+3.  **Lógica de Conversión Numérica para JSON (MUY IMPORTANTE para \`cantidad\`, \`precioCatalogo\`, \`precioVendedora\`):**
+    *   Cuando extraes un valor numérico del texto (ej. "2", "S/ 20.249,00", "1.234,56", "9.749"):
+        1.  Primero, límpialo mentalmente: elimina símbolos de moneda y espacios.
+        2.  Luego, convierte el texto limpio a un NÚMERO que JavaScript pueda interpretar (ej. \`parseFloat()\`). Esto significa que los puntos deben usarse para decimales y no debe haber separadores de miles.
+    *   **Ejemplos de Transformación para el JSON FINAL (Texto en Entrada -> Número en JSON):**
+        *   Texto: "2" -> JSON: \`2\`
+        *   Texto: "S/ 20.249,00" (coma es decimal) -> JSON: \`20249.00\`
+        *   Texto: "1.234,56" (coma es decimal) -> JSON: \`1234.56\`
+        *   Texto: "9.749" (entero, sin decimal explícito) -> JSON: \`9749\`
+        *   Texto: "22,50" (coma es decimal) -> JSON: \`22.50\`
+
+4.  **Formato de Salida JSON (Obligatorio):**
+    *   Debes devolver un objeto JSON.
+    *   Este objeto DEBE contener una ÚNICA clave llamada "items".
+    *   El valor de "items" DEBE ser un array de objetos.
+    *   Cada objeto se ajusta al esquema: \`codigo\` (string, opcional), \`descripcion\` (string), \`cantidad\` (number), \`precioCatalogo\` (number, opcional), \`precioVendedora\` (number).
+    *   Los campos numéricos (\`cantidad\`, \`precioCatalogo\`, \`precioVendedora\`) deben ser **NÚMEROS**, no cadenas, en el JSON final.
+    *   Si no se encuentran ítems válidos, "items" debe ser un array vacío (\`[]\`).
+
+Ejemplo de JSON esperado si se encuentran ítems (observa los NÚMEROS para precios y cantidad):
 {
   "items": [
-    { "codigo": "COD001", "descripcion": "Camisa Talla L", "cantidad": 2, "precioCatalogo": 25, "precioVendedora": 20 },
-    { "descripcion": "Pantalón Jean", "cantidad": 1, "precioVendedora": 45.50 }
+    { "codigo": "COD001", "descripcion": "Camisa Talla L", "cantidad": 2, "precioCatalogo": 25.00, "precioVendedora": 20.00 },
+    { "descripcion": "Pantalón Jean Azul", "cantidad": 1, "precioVendedora": 45.50 }
   ]
 }
 
-Ejemplo de formato de respuesta esperado si NO se encuentran ítems:
-{
-  "items": []
-}
-
-Proporciona ÚNICAMENTE el objeto JSON como respuesta, sin ningún texto, explicación o markdown adicional antes o después.
+Proporciona ÚNICAMENTE el objeto JSON como respuesta, sin ningún texto, explicación o markdown adicional.
 `,
   config: {
     temperature: 0.1, // Lowered temperature for more deterministic JSON output
