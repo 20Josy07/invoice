@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText, UploadCloud, XCircle, ImageUp, ReceiptText } from 'lucide-react';
+import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText, UploadCloud, XCircle, ImageUp, ReceiptText, Eraser } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle as DialogTitleComponent } from '@/components/ui/dialog';
@@ -59,6 +59,8 @@ interface PreparedInvoiceData {
   totalAPagar: number;
 }
 
+const LOCAL_STORAGE_KEY = 'facturaFacilDraft';
+
 // Helper function to calculate totals
 const calculateInvoiceTotals = (currentItems: ReadonlyArray<CalculableItem> | undefined) => {
   let catSum = 0;
@@ -85,20 +87,66 @@ const calculateInvoiceTotals = (currentItems: ReadonlyArray<CalculableItem> | un
 
 export function InvoiceForm() {
   const { toast } = useToast();
+  
+  const defaultFormValues: InvoiceFormValues = {
+    clientName: '',
+    invoiceNumber: '',
+    paymentDueDate: '',
+    items: [{ codigo: '', descripcion: '', cantidad: 1, precioCatalogo: 0, precioVendedora: 0 }],
+  };
+  
   const { register, control, handleSubmit, formState: { errors }, watch, setValue, reset } = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
-    defaultValues: {
-      clientName: '',
-      invoiceNumber: '',
-      paymentDueDate: '',
-      items: [{ codigo: '', descripcion: '', cantidad: 1, precioCatalogo: 0, precioVendedora: 0 }],
-    },
+    defaultValues: defaultFormValues,
   });
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
   });
+  
+  const watchedFormValues = watch();
+  
+  // Load from localStorage on initial render
+  useEffect(() => {
+    try {
+      const savedDraft = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedDraft) {
+        const parsedDraft = JSON.parse(savedDraft);
+        // Ensure items is always an array and has at least one item
+        if (!parsedDraft.items || parsedDraft.items.length === 0) {
+            parsedDraft.items = defaultFormValues.items;
+        }
+        reset(parsedDraft);
+        toast({ title: "Borrador cargado", description: "Se ha recuperado el último borrador guardado.", variant: "default" });
+      }
+    } catch (error) {
+        console.warn("Could not load draft from localStorage", error);
+    }
+  }, [reset]);
+
+  // Save to localStorage on change
+  useEffect(() => {
+    try {
+        const subscription = watch((value) => {
+            window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(value));
+        });
+        return () => subscription.unsubscribe();
+    } catch (error) {
+        console.warn("Could not save draft to localStorage", error);
+    }
+  }, [watch]);
+  
+  
+  const handleClearForm = () => {
+    reset(defaultFormValues);
+    try {
+        window.localStorage.removeItem(LOCAL_STORAGE_KEY);
+    } catch (error) {
+        console.warn("Could not remove draft from localStorage", error);
+    }
+    toast({ title: "Formulario limpiado", description: "Puede comenzar una nueva factura desde cero."});
+  };
 
   // Calculate totals directly from the most reliable source
   const { subtotalCatalogo, subtotalVendedora, totalAPagar } = calculateInvoiceTotals(fields);
@@ -149,29 +197,32 @@ export function InvoiceForm() {
     setIsDownloading(true);
     const invoiceContentElement = document.getElementById('invoice-preview-content');
     if (invoiceContentElement) {
-      try {
+        try {
         const canvas = await html2canvas(invoiceContentElement, {
-          scale: 3,
-          useCORS: true,
-          width: invoiceContentElement.scrollWidth,
-          height: invoiceContentElement.scrollHeight,
-          windowWidth: window.innerWidth,
-          windowHeight: window.innerHeight
+            scale: 3, // Increased scale for better quality
+            useCORS: true,
+            width: invoiceContentElement.scrollWidth,
+            height: invoiceContentElement.scrollHeight,
         });
 
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = canvas.toDataURL('image/png', 1.0);
         
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'mm',
+            format: 'a4',
+        });
+        
         const pdfPageWidth = pdf.internal.pageSize.getWidth();
         const pdfPageHeight = pdf.internal.pageSize.getHeight();
+        const pageMargin = 10;
         
         const imgProps = pdf.getImageProperties(imgData);
         const imgAspectRatio = imgProps.width / imgProps.height;
-        
-        const pageMargin = 10; // 10mm margin on all sides
+
         const usableWidth = pdfPageWidth - (pageMargin * 2);
         const usableHeight = pdfPageHeight - (pageMargin * 2);
-
+        
         let finalImgWidth = usableWidth;
         let finalImgHeight = finalImgWidth / imgAspectRatio;
         
@@ -180,8 +231,8 @@ export function InvoiceForm() {
             finalImgWidth = finalImgHeight * imgAspectRatio;
         }
 
-        const xOffset = (pdfPageWidth - finalImgWidth) / 2;
-        const yOffset = (pdfPageHeight - finalImgHeight) / 2;
+        const xOffset = pageMargin;
+        const yOffset = (pdfPageHeight - finalImgHeight) / 2; // Center vertically
 
         pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
         pdf.save(`factura-${preparedInvoiceData.data.invoiceNumber || 'documento'}.pdf`);
@@ -518,9 +569,14 @@ export function InvoiceForm() {
             {errors.items && !Array.isArray(errors.items) && errors.items.message && (
               <p className="text-sm font-medium text-destructive mt-2">{errors.items.message}</p>
             )}
-             <Button type="button" variant="outline" onClick={addNewItem} className="mt-4 border-dashed hover:border-solid hover:bg-muted">
-                <PlusCircle className="mr-2 h-4 w-4" /> Agregar Ítem
-            </Button>
+            <div className="mt-4 flex items-center gap-2">
+                 <Button type="button" variant="outline" onClick={addNewItem} className="border-dashed hover:border-solid hover:bg-muted">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Agregar Ítem
+                </Button>
+                <Button type="button" variant="secondary" onClick={handleClearForm}>
+                    <Eraser className="mr-2 h-4 w-4" /> Limpiar Formulario
+                </Button>
+             </div>
           </CardContent>
         </Card>
 
@@ -584,3 +640,6 @@ export function InvoiceForm() {
     </>
   );
 }
+
+
+    
