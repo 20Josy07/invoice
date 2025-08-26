@@ -14,11 +14,11 @@
     --popover: 0 0% 100%;
     --popover-foreground: 210 10% 23%;
 
-    --primary: 207 90% 69%; /* Soft Blue (#64B5F6) */
+    --primary: 261 38% 67%; /* New Dominant Color (#987ece) */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 92%;
-    --secondary-foreground: 207 90% 45%;
+    --secondary: 261 38% 92%;
+    --secondary-foreground: 261 38% 45%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 210 8% 45.1%;
@@ -31,7 +31,7 @@
 
     --border: 210 40% 90%;
     --input: 0 0% 100%;
-    --ring: 207 90% 69%;
+    --ring: 261 38% 67%;
 
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
@@ -51,7 +51,7 @@
     --popover: 210 10% 16%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 207 90% 69%;
+    --primary: 261 38% 67%;
     --primary-foreground: 210 40% 9.8%;
 
     --secondary: 210 10% 25%;
@@ -68,7 +68,7 @@
 
     --border: 210 10% 30%;
     --input: 210 10% 20%;
-    --ring: 207 90% 69%;
+    --ring: 261 38% 67%;
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
