@@ -104,11 +104,11 @@ export function InvoicePreview({
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="p-3 text-left text-white rounded-l-full uppercase tracking-wider font-semibold w-2/5" style={{backgroundColor: primaryColor}}>Detalle</th>
-              <th className="p-3 text-center text-white uppercase tracking-wider font-semibold" style={{backgroundColor: primaryColor}}>Cant.</th>
-              <th className="p-3 text-right text-white uppercase tracking-wider font-semibold" style={{backgroundColor: primaryColor}}>P. Catálogo</th>
-              <th className="p-3 text-right text-white uppercase tracking-wider font-semibold" style={{backgroundColor: primaryColor}}>P. Vendedora</th>
-              <th className="p-3 text-right text-white rounded-r-full uppercase tracking-wider font-semibold" style={{backgroundColor: primaryColor}}>Subtotal</th>
+              <th className="p-3 text-left text-white rounded-l-full uppercase tracking-wider font-semibold w-[40%]" style={{backgroundColor: primaryColor}}>Detalle</th>
+              <th className="p-3 text-center text-white uppercase tracking-wider font-semibold w-[10%]" style={{backgroundColor: primaryColor}}>Cant.</th>
+              <th className="p-3 text-center text-white uppercase tracking-wider font-semibold w-[17.5%]" style={{backgroundColor: primaryColor}}>P. Catálogo</th>
+              <th className="p-3 text-center text-white uppercase tracking-wider font-semibold w-[17.5%]" style={{backgroundColor: primaryColor}}>P. Vendedora</th>
+              <th className="p-3 text-right text-white rounded-r-full uppercase tracking-wider font-semibold w-[15%]" style={{backgroundColor: primaryColor}}>Subtotal</th>
             </tr>
           </thead>
           <tbody>
@@ -116,8 +116,8 @@ export function InvoicePreview({
               <tr key={index} className="[&>td]:py-3 [&>td]:px-3">
                 <td className="font-medium border-b" style={{borderColor: '#e5e7eb'}}>{item.descripcion}</td>
                 <td className="text-center border-b" style={{borderColor: '#e5e7eb'}}>{item.cantidad}</td>
-                <td className="text-right border-b" style={{borderColor: '#e5e7eb'}}>{formatCurrency(item.precioCatalogo)}</td>
-                <td className="text-right border-b" style={{borderColor: '#e5e7eb'}}>{formatCurrency(item.precioVendedora)}</td>
+                <td className="text-center border-b" style={{borderColor: '#e5e7eb'}}>{formatCurrency(item.precioCatalogo)}</td>
+                <td className="text-center border-b" style={{borderColor: '#e5e7eb'}}>{formatCurrency(item.precioVendedora)}</td>
                 <td className="text-right font-semibold border-b" style={{borderColor: '#e5e7eb'}}>{formatCurrency(item.cantidad * item.precioVendedora)}</td>
               </tr>
             ))}
