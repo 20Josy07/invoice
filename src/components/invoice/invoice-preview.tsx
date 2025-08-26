@@ -25,13 +25,17 @@ export function InvoicePreview({
 
   const formatPaymentDueDate = (dateString: string | undefined) => {
     if (!dateString) return null;
+    // Handles date input format "YYYY-MM-DD"
     const parts = dateString.split('-');
     if (parts.length !== 3) return dateString;
     const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS Date
     const day = parseInt(parts[2], 10);
     
     const dateObj = new Date(year, month, day);
+    // Check if the date is valid
+    if (isNaN(dateObj.getTime())) return dateString;
+
     return dateObj.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
@@ -41,17 +45,11 @@ export function InvoicePreview({
   
   const formattedPaymentDueDate = formatPaymentDueDate(data.paymentDueDate);
 
-  // Helper to get initials from client name for logo placeholder
-  const getInitials = (name: string | undefined) => {
-    if (!name) return 'LM';
-    const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-    return initials || 'LM';
-  }
-
   // Define colors here to be independent of Tailwind theme variables for PDF generation
   const primaryColor = '#987ece';
-  const textColor = '#1a1a1a';
-  const backgroundColor = '#FBF9F6';
+  const textColor = '#1f2937'; // A slightly softer black (cool-gray-800)
+  const mutedTextColor = '#6b7280'; // cool-gray-500
+  const backgroundColor = '#ffffff'; // Pure white for clean printing
 
   return (
     <div
@@ -70,29 +68,34 @@ export function InvoicePreview({
             </div>
           )}
         </div>
-        <div className="w-24 h-24 border-2 rounded-full flex items-center justify-center bg-white" style={{ borderColor: textColor }}>
-          <span className="text-3xl font-bold" style={{ color: textColor }}>{getInitials(data.clientName)}</span>
-        </div>
-      </header>
-
-      {/* Client Info & Dates */}
-      <section className="grid grid-cols-2 gap-8 mb-10">
-        <div className="border-2 rounded-2xl p-4" style={{ borderColor: textColor }}>
-          <h3 className="font-bold mb-2 uppercase" style={{ color: textColor }}>Datos del Cliente</h3>
-          {data.clientName && <p className="font-medium">{data.clientName}</p>}
-          {data.clientAddress && <p className="text-gray-700">{data.clientAddress}</p>}
-        </div>
-        <div className="text-sm space-y-2">
-            <div className="flex justify-between">
+        <div className="text-right text-sm space-y-2">
+            <div className="flex justify-end gap-4">
                 <span className="font-bold" style={{ color: textColor }}>Fecha de Emisión:</span>
                 <span>{currentDate}</span>
             </div>
            {formattedPaymentDueDate && (
-            <div className="flex justify-between">
+            <div className="flex justify-end gap-4">
                 <span className="font-bold" style={{ color: textColor }}>Fecha Límite:</span>
                 <span>{formattedPaymentDueDate}</span>
             </div>
            )}
+        </div>
+      </header>
+
+      {/* Client Info */}
+      <section className="mb-10">
+        <div className="border-2 rounded-2xl p-4 inline-block" style={{ borderColor: textColor }}>
+          <h3 className="font-bold mb-2 uppercase" style={{ color: textColor }}>Datos del Cliente</h3>
+          {data.clientName ? (
+             <p className="font-medium">{data.clientName}</p>
+          ) : (
+             <p className="font-medium" style={{ color: mutedTextColor }}>Nombre no especificado</p>
+          )}
+          {data.clientAddress ? (
+            <p style={{ color: mutedTextColor }}>{data.clientAddress}</p>
+          ) : (
+            <p style={{ color: mutedTextColor }}>Dirección no especificada</p>
+          )}
         </div>
       </section>
 
@@ -111,16 +114,16 @@ export function InvoicePreview({
           <tbody>
             {data.items.map((item, index) => (
               <tr key={index} className="[&>td]:py-3 [&>td]:px-3">
-                <td className="font-medium border-b border-gray-300">{item.descripcion}</td>
-                <td className="text-center border-b border-gray-300">{item.cantidad}</td>
-                <td className="text-right border-b border-gray-300">{formatCurrency(item.precioCatalogo)}</td>
-                <td className="text-right border-b border-gray-300">{formatCurrency(item.precioVendedora)}</td>
-                <td className="text-right font-semibold border-b border-gray-300">{formatCurrency(item.cantidad * item.precioVendedora)}</td>
+                <td className="font-medium border-b" style={{borderColor: '#e5e7eb'}}>{item.descripcion}</td>
+                <td className="text-center border-b" style={{borderColor: '#e5e7eb'}}>{item.cantidad}</td>
+                <td className="text-right border-b" style={{borderColor: '#e5e7eb'}}>{formatCurrency(item.precioCatalogo)}</td>
+                <td className="text-right border-b" style={{borderColor: '#e5e7eb'}}>{formatCurrency(item.precioVendedora)}</td>
+                <td className="text-right font-semibold border-b" style={{borderColor: '#e5e7eb'}}>{formatCurrency(item.cantidad * item.precioVendedora)}</td>
               </tr>
             ))}
              {data.items.length === 0 && (
                 <tr>
-                    <td colSpan={5} className="text-center text-gray-500 p-8 border-b border-gray-300">No hay ítems en la factura.</td>
+                    <td colSpan={5} className="text-center p-8 border-b" style={{color: mutedTextColor, borderColor: '#e5e7eb'}}>No hay ítems en la factura.</td>
                 </tr>
              )}
           </tbody>
@@ -131,14 +134,14 @@ export function InvoicePreview({
       <section className="flex justify-end mt-8">
         <div className="w-full md:w-2/5 space-y-3 text-sm">
           <div className="flex justify-between items-center">
-            <span className="text-gray-700">Subtotal (Precio Catálogo):</span>
+            <span style={{color: mutedTextColor}}>Subtotal (Precio Catálogo):</span>
             <span className="font-medium">{formatCurrency(subtotalCatalogo)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-gray-700">Subtotal (Precio Vendedora):</span>
+            <span style={{color: mutedTextColor}}>Subtotal (Precio Vendedora):</span>
             <span className="font-medium">{formatCurrency(subtotalVendedora)}</span>
           </div>
-           <div className="w-full h-px bg-gray-300 my-2"></div>
+           <div className="w-full h-px my-2" style={{backgroundColor: '#e5e7eb'}}></div>
           <div className="flex justify-between items-center text-white rounded-full px-4 py-2 mt-2" style={{backgroundColor: primaryColor}}>
             <span className="font-bold text-base uppercase">Total a Pagar</span>
             <span className="font-bold text-base">{formatCurrency(totalAPagar)}</span>
