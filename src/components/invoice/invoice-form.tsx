@@ -34,7 +34,6 @@ const invoiceItemSchema = z.object({
 
 const invoiceFormSchema = z.object({
   clientName: z.string().optional(),
-  clientAddress: z.string().optional(),
   invoiceNumber: z.string().optional(),
   paymentDueDate: z.string().optional(),
   items: z.array(invoiceItemSchema).min(1, "Debe agregar al menos un ítem a la factura."),
@@ -90,7 +89,6 @@ export function InvoiceForm() {
     resolver: zodResolver(invoiceFormSchema),
     defaultValues: {
       clientName: '',
-      clientAddress: '',
       invoiceNumber: '',
       paymentDueDate: '',
       items: [{ codigo: '', descripcion: '', cantidad: 1, precioCatalogo: 0, precioVendedora: 0 }],
@@ -405,14 +403,10 @@ export function InvoiceForm() {
             <CardTitle>Información General (Opcional)</CardTitle>
             <CardDescription>Complete los datos del cliente y de la factura.</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="clientName">Nombre del Cliente</Label>
               <Input id="clientName" {...register("clientName")} placeholder="Ej: Juan Pérez" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="clientAddress">Dirección del Cliente</Label>
-              <Input id="clientAddress" {...register("clientAddress")} placeholder="Ej: Av. Siempreviva 123" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="invoiceNumber">Número de Factura</Label>

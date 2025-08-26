@@ -91,11 +91,6 @@ export function InvoicePreview({
           ) : (
              <p className="font-medium" style={{ color: mutedTextColor }}>Nombre no especificado</p>
           )}
-          {data.clientAddress ? (
-            <p style={{ color: mutedTextColor }}>{data.clientAddress}</p>
-          ) : (
-            <p style={{ color: mutedTextColor }}>Dirección no especificada</p>
-          )}
         </div>
       </section>
 
