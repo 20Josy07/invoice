@@ -67,9 +67,9 @@ const calculateInvoiceTotals = (currentItems: ReadonlyArray<CalculableItem> | un
 
   if (Array.isArray(currentItems)) {
     currentItems.forEach(item => {
-      const cantidad = parseFloat(String(item.cantidad)) || 0;
-      const precioCatalogo = parseFloat(String(item.precioCatalogo)) || 0;
-      const precioVendedora = parseFloat(String(item.precioVendedora)) || 0;
+      const cantidad = Number(item.cantidad) || 0;
+      const precioCatalogo = Number(item.precioCatalogo) || 0;
+      const precioVendedora = Number(item.precioVendedora) || 0;
 
       catSum += cantidad * precioCatalogo;
       vendSum += cantidad * precioVendedora;
@@ -104,8 +104,8 @@ export function InvoiceForm() {
 
   const watchedItems = watch("items");
 
-  // Calculate totals directly from watchedItems
-  const { subtotalCatalogo, subtotalVendedora, totalAPagar } = calculateInvoiceTotals(watchedItems);
+  // Calculate totals directly from the most reliable source
+  const { subtotalCatalogo, subtotalVendedora, totalAPagar } = calculateInvoiceTotals(fields);
 
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [preparedInvoiceData, setPreparedInvoiceData] = useState<PreparedInvoiceData | null>(null);
@@ -230,7 +230,7 @@ export function InvoiceForm() {
       const result = await parseInvoiceText({ text: textToParse });
       if (result && result.items && result.items.length > 0) {
         const newItems = result.items.map((item: InvoiceItemAIData) => ({
-          codigo: item.codigo || '', // Use empty string if AI doesn't provide a code
+          codigo: item.codigo || '',
           descripcion: item.descripcion || 'Descripción no encontrada',
           cantidad: Number(item.cantidad) || 1,
           precioCatalogo: Number(item.precioCatalogo) || 0,
@@ -311,7 +311,7 @@ export function InvoiceForm() {
       const result = await parseInvoiceImage({ photoDataUri: selectedImageDataUri });
       if (result && result.items && result.items.length > 0) {
          const newItems = result.items.map((item: InvoiceItemAIData) => ({
-          codigo: item.codigo || '', // Use empty string if AI doesn't provide a code
+          codigo: item.codigo || '',
           descripcion: item.descripcion || 'Descripción no encontrada',
           cantidad: Number(item.cantidad) || 1,
           precioCatalogo: Number(item.precioCatalogo) || 0,
@@ -334,31 +334,47 @@ export function InvoiceForm() {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <Card className="shadow-lg rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-lg text-foreground">Procesar Ítems con IA (Texto)</CardTitle>
-            <CardDescription>Pegue el texto de los ítems de su factura y la IA intentará organizarlos.</CardDescription>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* AI Text Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+            <div className="flex-shrink-0">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Bot className="h-6 w-6" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <CardTitle>Procesar con IA (Texto)</CardTitle>
+              <CardDescription>Pegue el texto de sus ítems y la IA los organizará.</CardDescription>
+            </div>
           </CardHeader>
           <CardContent>
             <Textarea
-              placeholder="Ejemplo: COD001 Camisa Talla L cant 2 precio cat 25 precio vend 20&#10;PROD002 Pantalón Jean cant 1 precio cat 50 precio vend 45"
+              placeholder="Ej: COD001 Camisa Talla L cant 2 precio cat 25 precio vend 20..."
               value={textToParse}
               onChange={(e) => setTextToParse(e.target.value)}
-              className="min-h-[100px] mb-4"
+              className="min-h-[120px] mb-4"
               disabled={isParsingText || isParsingImage || isCompressingImage}
             />
-            <Button onClick={handleParseTextWithAI} disabled={isParsingText || isParsingImage || isCompressingImage || !textToParse.trim()} className="bg-primary hover:bg-primary/90">
-              {isParsingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
-              Procesar Texto
+            <Button onClick={handleParseTextWithAI} disabled={isParsingText || isParsingImage || isCompressingImage || !textToParse.trim()} className="w-full">
+              {isParsingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+              Analizar Texto
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-lg text-foreground">Procesar Ítems con IA (Imagen)</CardTitle>
-            <CardDescription>Suba una imagen de su factura y la IA intentará extraer los ítems.</CardDescription>
+        {/* AI Image Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+             <div className="flex-shrink-0">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <ImageUp className="h-6 w-6" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <CardTitle>Procesar con IA (Imagen)</CardTitle>
+              <CardDescription>Suba una imagen de su factura para extraer los ítems.</CardDescription>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -372,21 +388,21 @@ export function InvoiceForm() {
                 disabled={isParsingImage || isParsingText || isCompressingImage}
               />
               {selectedImageFile && (
-                <div className="text-sm text-muted-foreground flex justify-between items-center">
-                  <span>Archivo: {selectedImageFile.name}</span>
-                  <Button variant="ghost" size="icon" onClick={clearSelectedImage} disabled={isParsingImage || isParsingText || isCompressingImage} aria-label="Limpiar imagen">
+                <div className="text-xs text-muted-foreground flex justify-between items-center bg-muted/50 p-2 rounded-md">
+                  <span>{selectedImageFile.name}</span>
+                  <Button variant="ghost" size="icon" onClick={clearSelectedImage} disabled={isParsingImage || isParsingText || isCompressingImage} aria-label="Limpiar imagen" className="h-6 w-6">
                     <XCircle className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               )}
                {selectedImageDataUri && (
-                <div className="mt-2 border rounded-md p-2 max-h-40 overflow-hidden">
-                    <img src={selectedImageDataUri} alt="Previsualización de factura" className="w-auto h-full object-contain mx-auto" />
+                <div className="mt-2 border rounded-md p-2 max-h-28 overflow-hidden flex justify-center items-center bg-muted/30">
+                    <img src={selectedImageDataUri} alt="Previsualización de factura" className="max-h-24 w-auto object-contain" />
                 </div>
                 )}
-              <Button onClick={handleParseImageWithAI} disabled={isParsingImage || isParsingText || !selectedImageDataUri || isCompressingImage} className="bg-primary hover:bg-primary/90 w-full">
-                {isCompressingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isParsingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageUp className="mr-2 h-4 w-4" /> }
-                {isCompressingImage ? 'Comprimiendo...' : isParsingImage ? 'Procesando Imagen...' : 'Procesar Imagen'}
+              <Button onClick={handleParseImageWithAI} disabled={isParsingImage || isParsingText || !selectedImageDataUri || isCompressingImage} className="w-full">
+                {isCompressingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isParsingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" /> }
+                {isCompressingImage ? 'Comprimiendo...' : isParsingImage ? 'Procesando Imagen...' : 'Analizar Imagen'}
               </Button>
             </div>
           </CardContent>
@@ -394,166 +410,160 @@ export function InvoiceForm() {
       </div>
       
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        <Card className="shadow-lg rounded-lg">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-foreground">Información del Cliente y Factura (Opcional)</CardTitle>
+            <CardTitle>Información General (Opcional)</CardTitle>
+            <CardDescription>Complete los datos del cliente y de la factura.</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div>
-              <Label htmlFor="clientName" className="text-xs font-medium text-muted-foreground">Nombre del Cliente</Label>
-              <Input id="clientName" {...register("clientName")} placeholder="Nombre del Cliente" className="h-9 mt-1" />
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="clientName">Nombre del Cliente</Label>
+              <Input id="clientName" {...register("clientName")} placeholder="Ej: Juan Pérez" />
             </div>
-            <div>
-              <Label htmlFor="clientAddress" className="text-xs font-medium text-muted-foreground">Dirección del Cliente</Label>
-              <Input id="clientAddress" {...register("clientAddress")} placeholder="Dirección del Cliente" className="h-9 mt-1" />
+            <div className="space-y-1.5">
+              <Label htmlFor="clientAddress">Dirección del Cliente</Label>
+              <Input id="clientAddress" {...register("clientAddress")} placeholder="Ej: Av. Siempreviva 123" />
             </div>
-            <div>
-              <Label htmlFor="invoiceNumber" className="text-xs font-medium text-muted-foreground">Número de Factura</Label>
-              <Input id="invoiceNumber" {...register("invoiceNumber")} placeholder="Ej: F001-123" className="h-9 mt-1" />
+            <div className="space-y-1.5">
+              <Label htmlFor="invoiceNumber">Número de Factura</Label>
+              <Input id="invoiceNumber" {...register("invoiceNumber")} placeholder="Ej: F001-123" />
             </div>
-            <div>
-              <Label htmlFor="paymentDueDate" className="text-xs font-medium text-muted-foreground">Fecha Límite de Pago</Label>
-              <Input
-                type="date"
-                id="paymentDueDate"
-                {...register("paymentDueDate")}
-                className="h-9 mt-1 w-full"
-              />
+            <div className="space-y-1.5">
+              <Label htmlFor="paymentDueDate">Fecha Límite de Pago</Label>
+              <Input type="date" id="paymentDueDate" {...register("paymentDueDate")} />
             </div>
           </CardContent>
         </Card>
 
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="w-[150px] px-4 py-3">Código</TableHead>
-                <TableHead className="min-w-[200px] px-4 py-3">Descripción</TableHead>
-                <TableHead className="w-[120px] text-right px-4 py-3">Cantidad</TableHead>
-                <TableHead className="w-[150px] text-right px-4 py-3">Precio Cat.</TableHead>
-                <TableHead className="w-[150px] text-right px-4 py-3">Precio Vend.</TableHead>
-                <TableHead className="w-[170px] text-right px-4 py-3">Subtotal Vend.</TableHead>
-                <TableHead className="w-[100px] text-center px-4 py-3">Acción</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {fields.map((field, index) => {
-                const currentItem = watchedItems && watchedItems[index];
-                const cantidad = parseFloat(String(currentItem?.cantidad)) || 0;
-                const precioVendedora = parseFloat(String(currentItem?.precioVendedora)) || 0;
-                const itemSubtotal = cantidad * precioVendedora;
-                return (
-                  <TableRow key={field.id} className="hover:bg-muted/20">
-                    <TableCell className="px-4 py-3">
-                      <Input
-                        {...register(`items.${index}.codigo`)}
-                        placeholder="Ej: PROD001"
-                        className={`h-9 ${errors.items?.[index]?.codigo ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                      />
-                      {errors.items?.[index]?.codigo && <p className="text-xs text-destructive mt-1">{errors.items?.[index]?.codigo?.message}</p>}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <Input
-                        {...register(`items.${index}.descripcion`)}
-                        placeholder="Ej: Producto Ejemplo"
-                        className={`h-9 ${errors.items?.[index]?.descripcion ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                      />
-                      {errors.items?.[index]?.descripcion && <p className="text-xs text-destructive mt-1">{errors.items?.[index]?.descripcion?.message}</p>}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <Input
-                        type="number"
-                        step="any"
-                        {...register(`items.${index}.cantidad`)}
-                        placeholder="0"
-                        className={`h-9 text-right ${errors.items?.[index]?.cantidad ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                        onChange={(e) => setValue(`items.${index}.cantidad`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
-                      />
-                      {errors.items?.[index]?.cantidad && <p className="text-xs text-destructive mt-1">{errors.items?.[index]?.cantidad?.message}</p>}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...register(`items.${index}.precioCatalogo`)}
-                        placeholder="0.00"
-                        className={`h-9 text-right ${errors.items?.[index]?.precioCatalogo ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                        onChange={(e) => setValue(`items.${index}.precioCatalogo`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
-                      />
-                      {errors.items?.[index]?.precioCatalogo && <p className="text-xs text-destructive mt-1">{errors.items?.[index]?.precioCatalogo?.message}</p>}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...register(`items.${index}.precioVendedora`)}
-                        placeholder="0.00"
-                        className={`h-9 text-right ${errors.items?.[index]?.precioVendedora ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                        onChange={(e) => setValue(`items.${index}.precioVendedora`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
-                      />
-                      {errors.items?.[index]?.precioVendedora && <p className="text-xs text-destructive mt-1">{errors.items?.[index]?.precioVendedora?.message}</p>}
-                    </TableCell>
-                    <TableCell className="text-right font-medium px-4 py-3">{formatCurrency(itemSubtotal)}</TableCell>
-                    <TableCell className="text-center px-4 py-3">
-                      {fields.length > 1 && (
-                           <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(index)}
-                          aria-label="Eliminar ítem"
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </TableCell>
+        <Card>
+          <CardHeader>
+            <CardTitle>Ítems de la Factura</CardTitle>
+            <CardDescription>Agregue, edite o elimine los productos o servicios.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[130px] px-3 py-3">Código</TableHead>
+                    <TableHead className="min-w-[200px] px-3 py-3">Descripción</TableHead>
+                    <TableHead className="w-[100px] text-right px-3 py-3">Cantidad</TableHead>
+                    <TableHead className="w-[130px] text-right px-3 py-3">P. Catálogo</TableHead>
+                    <TableHead className="w-[130px] text-right px-3 py-3">P. Vendedora</TableHead>
+                    <TableHead className="w-[150px] text-right px-3 py-3">Subtotal</TableHead>
+                    <TableHead className="w-[80px] text-center px-3 py-3">Acción</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-        {errors.items && !Array.isArray(errors.items) && errors.items.message && (
-          <p className="text-sm font-medium text-destructive">{errors.items.message}</p>
-        )}
+                </TableHeader>
+                <TableBody>
+                  {fields.map((field, index) => {
+                    const currentItem = watchedItems && watchedItems[index];
+                    const cantidad = parseFloat(String(currentItem?.cantidad)) || 0;
+                    const precioVendedora = parseFloat(String(currentItem?.precioVendedora)) || 0;
+                    const itemSubtotal = cantidad * precioVendedora;
+                    return (
+                      <TableRow key={field.id}>
+                        <TableCell className="px-3 py-2">
+                          <Input
+                            {...register(`items.${index}.codigo`)}
+                            placeholder="SKU"
+                            className={`h-9 ${errors.items?.[index]?.codigo ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
+                          />
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                          <Input
+                            {...register(`items.${index}.descripcion`)}
+                            placeholder="Descripción del ítem"
+                            className={`h-9 ${errors.items?.[index]?.descripcion ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
+                          />
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                          <Input
+                            type="number"
+                            step="any"
+                            {...register(`items.${index}.cantidad`)}
+                            placeholder="0"
+                            className={`h-9 text-right ${errors.items?.[index]?.cantidad ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
+                            onChange={(e) => setValue(`items.${index}.cantidad`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
+                          />
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...register(`items.${index}.precioCatalogo`)}
+                            placeholder="0.00"
+                            className={`h-9 text-right ${errors.items?.[index]?.precioCatalogo ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
+                            onChange={(e) => setValue(`items.${index}.precioCatalogo`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
+                          />
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...register(`items.${index}.precioVendedora`)}
+                            placeholder="0.00"
+                            className={`h-9 text-right ${errors.items?.[index]?.precioVendedora ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
+                            onChange={(e) => setValue(`items.${index}.precioVendedora`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right font-medium px-3 py-2">{formatCurrency(itemSubtotal)}</TableCell>
+                        <TableCell className="text-center px-3 py-2">
+                          {fields.length > 1 && (
+                               <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => remove(index)}
+                              aria-label="Eliminar ítem"
+                              className="text-muted-foreground hover:text-destructive h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            {errors.items && !Array.isArray(errors.items) && errors.items.message && (
+              <p className="text-sm font-medium text-destructive mt-2">{errors.items.message}</p>
+            )}
+             <Button type="button" variant="outline" onClick={addNewItem} className="mt-4 border-dashed hover:border-solid hover:bg-muted">
+                <PlusCircle className="mr-2 h-4 w-4" /> Agregar Ítem
+            </Button>
+          </CardContent>
+        </Card>
 
-        <Button type="button" variant="outline" onClick={addNewItem} className="border-dashed hover:border-solid hover:bg-secondary">
-          <PlusCircle className="mr-2 h-4 w-4" /> Agregar Ítem
-        </Button>
-
-        <Separator className="my-8" />
-
-        <div className="flex flex-col md:flex-row justify-between items-start gap-8">
-          <div className="flex-grow">
-            {/* Potential space for notes or other invoice info */}
-          </div>
-          <Card className="w-full md:w-2/5 lg:w-1/3 shadow-lg rounded-lg">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl font-semibold text-foreground">Resumen de Factura</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Subtotal (Precio Catálogo):</span>
-                <span className="font-medium text-foreground">{formatCurrency(subtotalCatalogo)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Subtotal (Precio Vendedora):</span>
-                <span className="font-medium text-foreground">{formatCurrency(subtotalVendedora)}</span>
-              </div>
-              <Separator className="my-3" />
-              <div className="flex justify-between items-center text-lg">
-                <span className="font-semibold text-foreground">Total a Pagar:</span>
-                <span className="font-bold text-primary">{formatCurrency(totalAPagar)}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mt-10 flex justify-end">
-          <Button type="submit" size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-3 text-base rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
-            <FileText className="mr-2 h-5 w-5" /> Validar y Preparar Factura
-          </Button>
+        <div className="flex flex-col-reverse md:flex-row justify-between items-start gap-6">
+           <div className="w-full md:w-2/5 lg:w-1/3">
+             <Card className="bg-muted/40">
+                <CardHeader>
+                  <CardTitle className="text-lg">Resumen de Totales</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Subtotal (Catálogo):</span>
+                    <span className="font-medium">{formatCurrency(subtotalCatalogo)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Subtotal (Vendedora):</span>
+                    <span className="font-medium">{formatCurrency(subtotalVendedora)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between items-center text-lg">
+                    <span className="font-semibold">Total a Pagar:</span>
+                    <span className="font-bold text-primary">{formatCurrency(totalAPagar)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+           </div>
+           <div className="flex-grow flex justify-end w-full md:w-auto">
+             <Button type="submit" size="lg" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground px-10 py-6 text-base rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
+                <FileText className="mr-2 h-5 w-5" /> Validar y Preparar Factura
+              </Button>
+           </div>
         </div>
       </form>
 
@@ -586,6 +596,3 @@ export function InvoiceForm() {
     </>
   );
 }
-    
-
-    

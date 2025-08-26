@@ -5,10 +5,10 @@
 
 @layer base {
   :root {
-    --background: 240 10% 96%; /* Very Light Cool Grey */
+    --background: 240 10% 97%; /* Slightly adjusted for a softer white */
     --foreground: 240 10% 25%; /* Dark Cool Grey for text */
 
-    --card: 240 10% 98%; /* Slightly Off-White Cool Grey */
+    --card: 240 10% 99%; /* Slightly Off-White Cool Grey */
     --card-foreground: 240 10% 25%;
 
     --popover: 0 0% 100%; /* White */
@@ -29,7 +29,7 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 10% 80%; /* Medium-Light Cool Grey */
+    --border: 240 10% 88%; /* Slightly darker border for better contrast */
     --input: 0 0% 100%; /* White inputs */
     --ring: 260 35% 60%; /* Muted Lavender/Plum for rings */
 
