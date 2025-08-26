@@ -155,6 +155,8 @@ export function InvoiceForm() {
           useCORS: true,
           width: invoiceContentElement.scrollWidth,
           height: invoiceContentElement.scrollHeight,
+          windowWidth: window.innerWidth,
+          windowHeight: window.innerHeight
         });
 
         const imgData = canvas.toDataURL('image/png');
@@ -166,15 +168,20 @@ export function InvoiceForm() {
         const imgProps = pdf.getImageProperties(imgData);
         const imgAspectRatio = imgProps.width / imgProps.height;
         
-        let finalImgWidth = pdfPageWidth - 20; 
+        const pageMargin = 10; // 10mm margin on all sides
+        const usableWidth = pdfPageWidth - (pageMargin * 2);
+        const usableHeight = pdfPageHeight - (pageMargin * 2);
+
+        let finalImgWidth = usableWidth;
         let finalImgHeight = finalImgWidth / imgAspectRatio;
         
-        if (finalImgHeight > pdfPageHeight - 20) {
-            finalImgHeight = pdfPageHeight - 20;
+        if (finalImgHeight > usableHeight) {
+            finalImgHeight = usableHeight;
+            finalImgWidth = finalImgHeight * imgAspectRatio;
         }
 
-        const xOffset = 10;
-        const yOffset = 10;
+        const xOffset = (pdfPageWidth - finalImgWidth) / 2;
+        const yOffset = (pdfPageHeight - finalImgHeight) / 2;
 
         pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
         pdf.save(`factura-${preparedInvoiceData.data.invoiceNumber || 'documento'}.pdf`);
