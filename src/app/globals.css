@@ -23,7 +23,7 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 210 8% 45.1%;
 
-    --accent: 88 50% 64%; /* Light Green (#9CCC65) */
+    --accent: 336 84% 71%; /* New Accent: Soft Pink (#f472b6) */
     --accent-foreground: 210 10% 23%;
 
     --destructive: 0 84.2% 60.2%;
@@ -60,7 +60,7 @@
     --muted: 210 10% 25%;
     --muted-foreground: 210 40% 64.9%;
 
-    --accent: 88 50% 64%;
+    --accent: 336 84% 71%; /* New Accent: Soft Pink */
     --accent-foreground: 210 10% 15%;
 
     --destructive: 0 62.8% 30.6%;
