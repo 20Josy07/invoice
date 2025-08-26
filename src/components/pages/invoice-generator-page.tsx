@@ -1,7 +1,7 @@
 
 import { InvoiceForm } from '@/components/invoice/invoice-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText } from 'lucide-react';
+import { ReceiptText } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function InvoiceGeneratorPage() {
@@ -12,7 +12,7 @@ export default function InvoiceGeneratorPage() {
         <header className="flex justify-between items-start mb-10">
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center justify-center bg-primary/10 p-3 rounded-xl">
-              <FileText className="h-8 w-8 text-primary" />
+              <ReceiptText className="h-8 w-8 text-primary" />
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">

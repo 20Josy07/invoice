@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText, UploadCloud, XCircle, ImageUp } from 'lucide-react';
+import { Trash2, PlusCircle, Download, FileImage, Loader2, Bot, FileText, UploadCloud, XCircle, ImageUp, ReceiptText } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle as DialogTitleComponent } from '@/components/ui/dialog';
@@ -102,8 +102,6 @@ export function InvoiceForm() {
     name: "items",
   });
 
-  const watchedItems = watch("items");
-
   // Calculate totals directly from the most reliable source
   const { subtotalCatalogo, subtotalVendedora, totalAPagar } = calculateInvoiceTotals(fields);
 
@@ -123,7 +121,7 @@ export function InvoiceForm() {
 
   const addNewItem = () => {
     append({
-      codigo: '', // Default codigo to empty string
+      codigo: '',
       descripcion: '',
       cantidad: 1,
       precioCatalogo: 0,
@@ -132,7 +130,6 @@ export function InvoiceForm() {
   };
 
   const onSubmit = (formData: InvoiceFormValues) => {
-    // Recalculate totals based on the final validated formData.items
     const finalTotals = calculateInvoiceTotals(formData.items);
 
     setPreparedInvoiceData({
@@ -156,7 +153,7 @@ export function InvoiceForm() {
     if (invoiceContentElement) {
       try {
         const canvas = await html2canvas(invoiceContentElement, {
-          scale: 3, // Increased scale for better quality
+          scale: 3,
           useCORS: true,
           width: invoiceContentElement.scrollWidth,
           height: invoiceContentElement.scrollHeight,
@@ -164,26 +161,22 @@ export function InvoiceForm() {
 
         const imgData = canvas.toDataURL('image/png');
         
-        // A4 page in mm: 210 x 297
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfPageWidth = pdf.internal.pageSize.getWidth(); // 210mm
-        const pdfPageHeight = pdf.internal.pageSize.getHeight(); // 297mm
+        const pdfPageWidth = pdf.internal.pageSize.getWidth();
+        const pdfPageHeight = pdf.internal.pageSize.getHeight();
         
         const imgProps = pdf.getImageProperties(imgData);
         const imgAspectRatio = imgProps.width / imgProps.height;
         
-        const finalImgWidth = pdfPageWidth - 20; // A4 width with 10mm margin on each side
+        let finalImgWidth = pdfPageWidth - 20; 
         let finalImgHeight = finalImgWidth / imgAspectRatio;
         
-        // If the calculated height is greater than the page height, scale it down
         if (finalImgHeight > pdfPageHeight - 20) {
-            finalImgHeight = pdfPageHeight - 20; // Max height with 10mm margin
-            // Recalculate width to maintain aspect ratio
-            // finalImgWidth = finalImgHeight * imgAspectRatio; // This is not needed as we want to fit width
+            finalImgHeight = pdfPageHeight - 20;
         }
 
-        const xOffset = 10; // 10mm margin
-        const yOffset = 10; // 10mm margin
+        const xOffset = 10;
+        const yOffset = 10;
 
         pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
         pdf.save(`factura-${preparedInvoiceData.data.invoiceNumber || 'documento'}.pdf`);
@@ -235,7 +228,6 @@ export function InvoiceForm() {
           precioCatalogo: Number(item.precioCatalogo) || 0,
           precioVendedora: Number(item.precioVendedora) || 0,
         }));
-        // Using watch() to get current form values to preserve them during reset
         const currentFormValues = watch();
         reset({ ...currentFormValues, items: newItems });
         toast({ title: "Texto procesado", description: "Los ítems han sido cargados en el formulario." });
@@ -258,8 +250,8 @@ export function InvoiceForm() {
       toast({ title: "Comprimiendo imagen...", description: "Por favor espere."});
 
       const options = {
-        maxSizeMB: 0.8, // Max size in MB
-        maxWidthOrHeight: 1920, // Max width or height
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1920,
         useWebWorker: true,
       };
 
@@ -276,7 +268,6 @@ export function InvoiceForm() {
       } catch (error) {
         console.error('Error al comprimir la imagen:', error);
         toast({ title: "Error de Compresión", description: "No se pudo comprimir la imagen. Se usará la original.", variant: "destructive" });
-        // Fallback to original image if compression fails
         const reader = new FileReader();
         reader.onloadend = () => {
           setSelectedImageDataUri(reader.result as string);
@@ -455,9 +446,9 @@ export function InvoiceForm() {
                 </TableHeader>
                 <TableBody>
                   {fields.map((field, index) => {
-                    const currentItem = watchedItems && watchedItems[index];
-                    const cantidad = parseFloat(String(currentItem?.cantidad)) || 0;
-                    const precioVendedora = parseFloat(String(currentItem?.precioVendedora)) || 0;
+                    const currentItem = watch(`items.${index}`);
+                    const cantidad = Number(currentItem?.cantidad) || 0;
+                    const precioVendedora = Number(currentItem?.precioVendedora) || 0;
                     const itemSubtotal = cantidad * precioVendedora;
                     return (
                       <TableRow key={field.id}>
@@ -482,7 +473,6 @@ export function InvoiceForm() {
                             {...register(`items.${index}.cantidad`)}
                             placeholder="0"
                             className={`h-9 text-right ${errors.items?.[index]?.cantidad ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                            onChange={(e) => setValue(`items.${index}.cantidad`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
                           />
                         </TableCell>
                         <TableCell className="px-3 py-2">
@@ -492,7 +482,6 @@ export function InvoiceForm() {
                             {...register(`items.${index}.precioCatalogo`)}
                             placeholder="0.00"
                             className={`h-9 text-right ${errors.items?.[index]?.precioCatalogo ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                            onChange={(e) => setValue(`items.${index}.precioCatalogo`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
                           />
                         </TableCell>
                         <TableCell className="px-3 py-2">
@@ -502,7 +491,6 @@ export function InvoiceForm() {
                             {...register(`items.${index}.precioVendedora`)}
                             placeholder="0.00"
                             className={`h-9 text-right ${errors.items?.[index]?.precioVendedora ? 'border-destructive ring-destructive focus-visible:ring-destructive' : ''}`}
-                            onChange={(e) => setValue(`items.${index}.precioVendedora`, parseFloat(e.target.value) || 0, { shouldValidate: true })}
                           />
                         </TableCell>
                         <TableCell className="text-right font-medium px-3 py-2">{formatCurrency(itemSubtotal)}</TableCell>
@@ -560,7 +548,7 @@ export function InvoiceForm() {
            </div>
            <div className="flex-grow flex justify-end w-full md:w-auto">
              <Button type="submit" size="lg" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground px-10 py-6 text-base rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
-                <FileText className="mr-2 h-5 w-5" /> Validar y Preparar Factura
+                <ReceiptText className="mr-2 h-5 w-5" /> Validar y Preparar Factura
               </Button>
            </div>
         </div>
