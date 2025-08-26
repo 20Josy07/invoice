@@ -106,8 +106,8 @@ export function InvoicePreview({
             <tr>
               <th className="p-3 text-left text-white rounded-l-full uppercase tracking-wider font-semibold w-[40%]" style={{backgroundColor: primaryColor}}>Detalle</th>
               <th className="p-3 text-center text-white uppercase tracking-wider font-semibold w-[10%]" style={{backgroundColor: primaryColor}}>Cant.</th>
-              <th className="p-3 text-center text-white uppercase tracking-wider font-semibold w-[17.5%]" style={{backgroundColor: primaryColor}}>P. Catálogo</th>
-              <th className="p-3 text-center text-white uppercase tracking-wider font-semibold w-[17.5%]" style={{backgroundColor: primaryColor}}>P. Vendedora</th>
+              <th className="p-3 text-center text-white uppercase tracking-wider font-semibold w-[17.5%]" style={{backgroundColor: primaryColor}}>P.&nbsp;Catálogo</th>
+              <th className="p-3 text-center text-white uppercase tracking-wider font-semibold w-[17.5%]" style={{backgroundColor: primaryColor}}>P.&nbsp;Vendedora</th>
               <th className="p-3 text-right text-white rounded-r-full uppercase tracking-wider font-semibold w-[15%]" style={{backgroundColor: primaryColor}}>Subtotal</th>
             </tr>
           </thead>
