@@ -41,68 +41,81 @@ export function InvoicePreview({
   
   const formattedPaymentDueDate = formatPaymentDueDate(data.paymentDueDate);
 
+  // Helper to get initials from client name for logo placeholder
+  const getInitials = (name: string | undefined) => {
+    if (!name) return 'LM';
+    const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    return initials || 'LM';
+  }
+
   return (
     <div
       id="invoice-preview-content"
       {...props}
-      className="p-8 bg-white text-gray-900 border border-gray-300 rounded-lg shadow-lg w-full max-w-[210mm] mx-auto font-sans text-sm"
+      className="p-10 bg-[#FBF9F6] text-[#1a1a1a] w-full max-w-[210mm] mx-auto font-sans text-sm"
+      style={{ fontFamily: "'Helvetica Neue', 'Arial', sans-serif" }}
     >
       {/* Header */}
-      <header className="flex justify-end items-start pb-6 mb-8 border-b border-gray-200">
-        <div className="text-right">
-          <h1 className="text-3xl font-bold text-primary">FACTURA</h1>
-          {data.invoiceNumber && <p className="text-gray-600 mt-1">Nº: {data.invoiceNumber}</p>}
+      <header className="flex justify-between items-start mb-10">
+        <div>
+          <h1 className="text-5xl font-extrabold tracking-wider text-black">FACTURA</h1>
+          {data.invoiceNumber && (
+            <div className="mt-4 border-2 border-black rounded-full px-4 py-1 text-center inline-block">
+              <span className="font-bold">Nº:</span> {data.invoiceNumber}
+            </div>
+          )}
+        </div>
+        <div className="w-24 h-24 border-2 border-black rounded-full flex items-center justify-center bg-white">
+          <span className="text-3xl font-bold text-black">{getInitials(data.clientName)}</span>
         </div>
       </header>
 
-      {/* Invoice Details and Client Info */}
-      <section className="grid grid-cols-2 gap-8 mb-8">
-        <div className="p-4 border border-gray-200 rounded-md bg-gray-50/50">
-          <h3 className="text-sm font-semibold mb-2 text-gray-600 border-b pb-1">Facturar a:</h3>
-          {data.clientName && <p className="font-medium text-gray-800">{data.clientName}</p>}
-          {data.clientAddress && <p className="text-gray-500">{data.clientAddress}</p>}
+      {/* Client Info & Dates */}
+      <section className="grid grid-cols-2 gap-8 mb-10">
+        <div className="border-2 border-black rounded-2xl p-4">
+          <h3 className="font-bold text-black mb-2 uppercase">Datos del Cliente</h3>
+          {data.clientName && <p className="font-medium">{data.clientName}</p>}
+          {data.clientAddress && <p className="text-gray-700">{data.clientAddress}</p>}
         </div>
-        <div className="text-right text-xs">
-           <div className="grid grid-cols-2">
-                <p className="font-semibold text-gray-600">Fecha de Emisión:</p>
-                <p className="text-gray-800">{currentDate}</p>
+        <div className="text-sm space-y-2">
+            <div className="flex justify-between">
+                <span className="font-bold text-black">Fecha de Emisión:</span>
+                <span>{currentDate}</span>
             </div>
            {formattedPaymentDueDate && (
-            <div className="grid grid-cols-2 mt-1">
-                <p className="font-semibold text-gray-600">Fecha Límite de Pago:</p>
-                <p className="text-gray-800">{formattedPaymentDueDate}</p>
+            <div className="flex justify-between">
+                <span className="font-bold text-black">Fecha Límite:</span>
+                <span>{formattedPaymentDueDate}</span>
             </div>
            )}
         </div>
       </section>
 
       {/* Items Table */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="w-full mb-0 border-collapse">
-          <thead className="bg-gray-100 border-b border-gray-200">
+      <div className="mb-10">
+        <table className="w-full border-collapse">
+          <thead>
             <tr>
-              <th className="p-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Código</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-2/5">Descripción</th>
-              <th className="p-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Cant.</th>
-              <th className="p-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">P. Cat.</th>
-              <th className="p-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">P. Vend.</th>
-              <th className="p-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Subtotal</th>
+              <th className="p-3 text-left text-white bg-black rounded-l-full uppercase tracking-wider font-semibold w-2/5">Detalle</th>
+              <th className="p-3 text-center text-white bg-black uppercase tracking-wider font-semibold">Cant.</th>
+              <th className="p-3 text-right text-white bg-black uppercase tracking-wider font-semibold">P. Catálogo</th>
+              <th className="p-3 text-right text-white bg-black uppercase tracking-wider font-semibold">P. Vendedora</th>
+              <th className="p-3 text-right text-white bg-black rounded-r-full uppercase tracking-wider font-semibold">Subtotal</th>
             </tr>
           </thead>
           <tbody>
             {data.items.map((item, index) => (
-              <tr key={index} className="[&>td]:p-3 [&>td]:align-top">
-                <td className="border-b border-gray-200 text-gray-600 font-mono text-xs">{item.codigo}</td>
-                <td className="border-b border-gray-200 text-gray-800 font-medium">{item.descripcion}</td>
-                <td className="border-b border-gray-200 text-right text-gray-600">{item.cantidad}</td>
-                <td className="border-b border-gray-200 text-right text-gray-600">{formatCurrency(item.precioCatalogo)}</td>
-                <td className="border-b border-gray-200 text-right text-gray-600">{formatCurrency(item.precioVendedora)}</td>
-                <td className="border-b border-gray-200 text-right font-semibold text-gray-800">{formatCurrency(item.cantidad * item.precioVendedora)}</td>
+              <tr key={index} className="[&>td]:py-3 [&>td]:px-3">
+                <td className="font-medium border-b border-gray-300">{item.descripcion}</td>
+                <td className="text-center border-b border-gray-300">{item.cantidad}</td>
+                <td className="text-right border-b border-gray-300">{formatCurrency(item.precioCatalogo)}</td>
+                <td className="text-right border-b border-gray-300">{formatCurrency(item.precioVendedora)}</td>
+                <td className="text-right font-semibold border-b border-gray-300">{formatCurrency(item.cantidad * item.precioVendedora)}</td>
               </tr>
             ))}
              {data.items.length === 0 && (
                 <tr>
-                    <td colSpan={6} className="text-center text-gray-500 p-8">No hay ítems en la factura.</td>
+                    <td colSpan={5} className="text-center text-gray-500 p-8 border-b border-gray-300">No hay ítems en la factura.</td>
                 </tr>
              )}
           </tbody>
@@ -112,25 +125,27 @@ export function InvoicePreview({
       {/* Totals */}
       <section className="flex justify-end mt-8">
         <div className="w-full md:w-2/5 space-y-3 text-sm">
-          <div className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
-            <span className="text-gray-600">Subtotal (Precio Catálogo):</span>
-            <span className="font-medium text-gray-800">{formatCurrency(subtotalCatalogo)}</span>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-700">Subtotal (Precio Catálogo):</span>
+            <span className="font-medium">{formatCurrency(subtotalCatalogo)}</span>
           </div>
-          <div className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
-            <span className="text-gray-600">Subtotal (Precio Vendedora):</span>
-            <span className="font-medium text-gray-800">{formatCurrency(subtotalVendedora)}</span>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-700">Subtotal (Precio Vendedora):</span>
+            <span className="font-medium">{formatCurrency(subtotalVendedora)}</span>
           </div>
-          <div className="flex justify-between items-center p-3 bg-primary/10 rounded-md mt-2">
-            <span className="font-bold text-lg text-primary">Total a Pagar:</span>
-            <span className="font-bold text-lg text-primary">{formatCurrency(totalAPagar)}</span>
+           <div className="w-full h-px bg-gray-300 my-2"></div>
+          <div className="flex justify-between items-center bg-black text-white rounded-full px-4 py-2 mt-2">
+            <span className="font-bold text-base uppercase">Total a Pagar</span>
+            <span className="font-bold text-base">{formatCurrency(totalAPagar)}</span>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="mt-12 pt-6 border-t border-gray-200 text-center text-xs text-gray-500">
-         <p>Gracias por su negocio.</p>
-         <p>Si tiene alguna pregunta sobre esta factura, por favor contáctenos.</p>
+      <footer className="mt-16 text-center">
+         <div className="inline-block bg-black text-white px-6 py-2 rounded-full font-bold text-base">
+            GRACIAS
+         </div>
       </footer>
     </div>
   );
