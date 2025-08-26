@@ -155,36 +155,35 @@ export function InvoiceForm() {
     const invoiceContentElement = document.getElementById('invoice-preview-content');
     if (invoiceContentElement) {
       try {
-        const canvas = await html2canvas(invoiceContentElement, { scale: 2, useCORS: true, width: invoiceContentElement.scrollWidth, height: invoiceContentElement.scrollHeight });
+        const canvas = await html2canvas(invoiceContentElement, {
+          scale: 3, // Increased scale for better quality
+          useCORS: true,
+          width: invoiceContentElement.scrollWidth,
+          height: invoiceContentElement.scrollHeight,
+        });
+
         const imgData = canvas.toDataURL('image/png');
+        
+        // A4 page in mm: 210 x 297
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfPageWidth = pdf.internal.pageSize.getWidth();
-        const pdfPageHeight = pdf.internal.pageSize.getHeight();
+        const pdfPageWidth = pdf.internal.pageSize.getWidth(); // 210mm
+        const pdfPageHeight = pdf.internal.pageSize.getHeight(); // 297mm
         
         const imgProps = pdf.getImageProperties(imgData);
         const imgAspectRatio = imgProps.width / imgProps.height;
-
-        let finalImgWidth, finalImgHeight;
-
-        if (imgAspectRatio > (pdfPageWidth / pdfPageHeight)) {
-            finalImgWidth = pdfPageWidth;
-            finalImgHeight = finalImgWidth / imgAspectRatio;
-        } else {
-            finalImgHeight = pdfPageHeight;
-            finalImgWidth = finalImgHeight * imgAspectRatio;
-        }
         
-        if (finalImgWidth > pdfPageWidth) {
-            finalImgWidth = pdfPageWidth;
-            finalImgHeight = finalImgWidth / imgAspectRatio;
-        }
-        if (finalImgHeight > pdfPageHeight) {
-           finalImgHeight = pdfPageHeight;
-           finalImgWidth = finalImgHeight * imgAspectRatio;
+        const finalImgWidth = pdfPageWidth - 20; // A4 width with 10mm margin on each side
+        let finalImgHeight = finalImgWidth / imgAspectRatio;
+        
+        // If the calculated height is greater than the page height, scale it down
+        if (finalImgHeight > pdfPageHeight - 20) {
+            finalImgHeight = pdfPageHeight - 20; // Max height with 10mm margin
+            // Recalculate width to maintain aspect ratio
+            // finalImgWidth = finalImgHeight * imgAspectRatio; // This is not needed as we want to fit width
         }
 
-        const xOffset = (pdfPageWidth - finalImgWidth) / 2;
-        const yOffset = 0; 
+        const xOffset = 10; // 10mm margin
+        const yOffset = 10; // 10mm margin
 
         pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
         pdf.save(`factura-${preparedInvoiceData.data.invoiceNumber || 'documento'}.pdf`);
@@ -203,7 +202,7 @@ export function InvoiceForm() {
     const invoiceContentElement = document.getElementById('invoice-preview-content');
     if (invoiceContentElement) {
       try {
-        const canvas = await html2canvas(invoiceContentElement, { scale: 2, useCORS: true, width: invoiceContentElement.scrollWidth, height: invoiceContentElement.scrollHeight });
+        const canvas = await html2canvas(invoiceContentElement, { scale: 3, useCORS: true, width: invoiceContentElement.scrollWidth, height: invoiceContentElement.scrollHeight });
         const imgData = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.href = imgData;
