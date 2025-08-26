@@ -48,43 +48,48 @@ export function InvoicePreview({
     return initials || 'LM';
   }
 
+  // Define colors here to be independent of Tailwind theme variables for PDF generation
+  const primaryColor = '#987ece';
+  const textColor = '#1a1a1a';
+  const backgroundColor = '#FBF9F6';
+
   return (
     <div
       id="invoice-preview-content"
       {...props}
-      className="p-10 bg-[#FBF9F6] text-[#1a1a1a] w-full max-w-[210mm] mx-auto font-sans text-sm"
-      style={{ fontFamily: "'Helvetica Neue', 'Arial', sans-serif" }}
+      className="p-10 w-full max-w-[210mm] mx-auto font-sans text-sm"
+      style={{ backgroundColor: backgroundColor, color: textColor, fontFamily: "'Helvetica Neue', 'Arial', sans-serif" }}
     >
       {/* Header */}
       <header className="flex justify-between items-start mb-10">
         <div>
-          <h1 className="text-5xl font-extrabold tracking-wider text-black">FACTURA</h1>
+          <h1 className="text-5xl font-extrabold tracking-wider" style={{ color: textColor }}>FACTURA</h1>
           {data.invoiceNumber && (
-            <div className="mt-4 border-2 border-black rounded-full px-4 py-1 text-center inline-block">
+            <div className="mt-4 border-2 rounded-full px-4 py-1 text-center inline-block" style={{ borderColor: textColor }}>
               <span className="font-bold">Nº:</span> {data.invoiceNumber}
             </div>
           )}
         </div>
-        <div className="w-24 h-24 border-2 border-black rounded-full flex items-center justify-center bg-white">
-          <span className="text-3xl font-bold text-black">{getInitials(data.clientName)}</span>
+        <div className="w-24 h-24 border-2 rounded-full flex items-center justify-center bg-white" style={{ borderColor: textColor }}>
+          <span className="text-3xl font-bold" style={{ color: textColor }}>{getInitials(data.clientName)}</span>
         </div>
       </header>
 
       {/* Client Info & Dates */}
       <section className="grid grid-cols-2 gap-8 mb-10">
-        <div className="border-2 border-black rounded-2xl p-4">
-          <h3 className="font-bold text-black mb-2 uppercase">Datos del Cliente</h3>
+        <div className="border-2 rounded-2xl p-4" style={{ borderColor: textColor }}>
+          <h3 className="font-bold mb-2 uppercase" style={{ color: textColor }}>Datos del Cliente</h3>
           {data.clientName && <p className="font-medium">{data.clientName}</p>}
           {data.clientAddress && <p className="text-gray-700">{data.clientAddress}</p>}
         </div>
         <div className="text-sm space-y-2">
             <div className="flex justify-between">
-                <span className="font-bold text-black">Fecha de Emisión:</span>
+                <span className="font-bold" style={{ color: textColor }}>Fecha de Emisión:</span>
                 <span>{currentDate}</span>
             </div>
            {formattedPaymentDueDate && (
             <div className="flex justify-between">
-                <span className="font-bold text-black">Fecha Límite:</span>
+                <span className="font-bold" style={{ color: textColor }}>Fecha Límite:</span>
                 <span>{formattedPaymentDueDate}</span>
             </div>
            )}
@@ -96,11 +101,11 @@ export function InvoicePreview({
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="p-3 text-left text-white bg-black rounded-l-full uppercase tracking-wider font-semibold w-2/5">Detalle</th>
-              <th className="p-3 text-center text-white bg-black uppercase tracking-wider font-semibold">Cant.</th>
-              <th className="p-3 text-right text-white bg-black uppercase tracking-wider font-semibold">P. Catálogo</th>
-              <th className="p-3 text-right text-white bg-black uppercase tracking-wider font-semibold">P. Vendedora</th>
-              <th className="p-3 text-right text-white bg-black rounded-r-full uppercase tracking-wider font-semibold">Subtotal</th>
+              <th className="p-3 text-left text-white rounded-l-full uppercase tracking-wider font-semibold w-2/5" style={{backgroundColor: primaryColor}}>Detalle</th>
+              <th className="p-3 text-center text-white uppercase tracking-wider font-semibold" style={{backgroundColor: primaryColor}}>Cant.</th>
+              <th className="p-3 text-right text-white uppercase tracking-wider font-semibold" style={{backgroundColor: primaryColor}}>P. Catálogo</th>
+              <th className="p-3 text-right text-white uppercase tracking-wider font-semibold" style={{backgroundColor: primaryColor}}>P. Vendedora</th>
+              <th className="p-3 text-right text-white rounded-r-full uppercase tracking-wider font-semibold" style={{backgroundColor: primaryColor}}>Subtotal</th>
             </tr>
           </thead>
           <tbody>
@@ -134,7 +139,7 @@ export function InvoicePreview({
             <span className="font-medium">{formatCurrency(subtotalVendedora)}</span>
           </div>
            <div className="w-full h-px bg-gray-300 my-2"></div>
-          <div className="flex justify-between items-center bg-black text-white rounded-full px-4 py-2 mt-2">
+          <div className="flex justify-between items-center text-white rounded-full px-4 py-2 mt-2" style={{backgroundColor: primaryColor}}>
             <span className="font-bold text-base uppercase">Total a Pagar</span>
             <span className="font-bold text-base">{formatCurrency(totalAPagar)}</span>
           </div>
@@ -143,7 +148,7 @@ export function InvoicePreview({
 
       {/* Footer */}
       <footer className="mt-16 text-center">
-         <div className="inline-block bg-black text-white px-6 py-2 rounded-full font-bold text-base">
+         <div className="inline-block text-white px-6 py-2 rounded-full font-bold text-base" style={{backgroundColor: primaryColor}}>
             GRACIAS
          </div>
       </footer>
