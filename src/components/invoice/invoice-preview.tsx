@@ -48,12 +48,7 @@ export function InvoicePreview({
       className="p-8 bg-white text-gray-900 border border-gray-300 rounded-lg shadow-lg w-full max-w-[210mm] mx-auto font-sans text-sm"
     >
       {/* Header */}
-      <header className="flex justify-between items-start pb-6 mb-8 border-b border-gray-200">
-        <div>
-           <h2 className="text-xl font-bold text-gray-700">SU EMPRESA</h2>
-           <p className="text-xs text-gray-500">Dirección de su Empresa, Ciudad</p>
-           <p className="text-xs text-gray-500">email@suempresa.com</p>
-        </div>
+      <header className="flex justify-end items-start pb-6 mb-8 border-b border-gray-200">
         <div className="text-right">
           <h1 className="text-3xl font-bold text-primary">FACTURA</h1>
           {data.invoiceNumber && <p className="text-gray-600 mt-1">Nº: {data.invoiceNumber}</p>}
